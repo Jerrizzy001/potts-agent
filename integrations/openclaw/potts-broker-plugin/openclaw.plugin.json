@@ -1,0 +1,115 @@
+{
+  "id": "potts-broker",
+  "name": "Potts broker",
+  "description": "Typed Potts broker tools (propose/status/list only) and LLM-free owner controls with bound Telegram approval buttons.",
+  "categories": [
+    "other"
+  ],
+  "contracts": {
+    "tools": [
+      "potts_propose_action",
+      "potts_action_status",
+      "potts_list_actions",
+      "potts_memory_explain",
+      "potts_memory_search",
+      "potts_drafts_list",
+      "potts_briefing_status",
+      "potts_capability_status",
+      "potts_read_content",
+      "potts_save_file",
+      "potts_delegation_report",
+      "potts_search_imessage",
+      "potts_send_voice",
+      "potts_send_file",
+      "potts_claude",
+      "potts_claude_status",
+      "potts_send_screenshot",
+      "potts_reminder",
+      "potts_delegate",
+      "potts_worker_status",
+      "potts_release_request",
+      "potts_release_status",
+      "potts_environment_status",
+      "potts_worker_control",
+      "potts_learning",
+      "potts_react"
+    ]
+  },
+  "activation": {
+    "onStartup": true
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "deliveryChannel": {
+        "enum": [
+          "telegram",
+          "imessage"
+        ]
+      },
+      "deliveryTarget": {
+        "type": "string"
+      },
+      "pottsHome": {
+        "type": "string"
+      },
+      "brokerSocket": {
+        "type": "string"
+      },
+      "ingressSocket": {
+        "type": "string"
+      },
+      "readSocket": {
+        "type": "string"
+      },
+      "memoryControlSocket": {
+        "type": "string"
+      },
+      "ownerTelegramId": {
+        "type": "string",
+        "pattern": "^[1-9][0-9]{0,19}$"
+      },
+      "ownerTelegramIdRef": {
+        "type": "string",
+        "pattern": "^(keychain:[^/\\s]+/[^\\s]+|env:[A-Z_][A-Z0-9_]*)$"
+      },
+      "ingressKeyRef": {
+        "type": "string",
+        "pattern": "^(keychain:[^/\\s]+/[^\\s]+|env:[A-Z_][A-Z0-9_]*)$"
+      },
+      "ownerControls": {
+        "type": "boolean"
+      },
+      "agentTools": {
+        "type": "boolean"
+      },
+      "agentLabel": {
+        "type": "string",
+        "pattern": "^[A-Za-z0-9_.:-]{1,64}$"
+      },
+      "ownerChannel": {
+        "type": "boolean"
+      },
+      "ownerChannelSocket": {
+        "type": "string"
+      },
+      "telegramAccountId": {
+        "type": "string"
+      },
+      "coordinatorEnabled": {
+        "type": "boolean"
+      },
+      "coordinatorAgentId": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9_-]{1,64}$"
+      },
+      "learningEnabled": {
+        "type": "boolean"
+      },
+      "learningDirectory": {
+        "type": "string"
+      }
+    }
+  }
+}

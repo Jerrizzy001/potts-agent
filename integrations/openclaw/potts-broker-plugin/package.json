@@ -1,0 +1,16 @@
+{
+  "name": "potts-broker-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Potts broker tools and owner controls for OpenClaw (local, linked install only).",
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "compat": {
+      "pluginApi": ">=2026.10.5",
+      "minGatewayVersion": "2026.10.5"
+    }
+  }
+}

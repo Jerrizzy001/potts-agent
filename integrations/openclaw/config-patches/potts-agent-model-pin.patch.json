@@ -1,0 +1,9 @@
+{
+  "agents": {
+    "entries": {
+      "main": {
+        "modelPolicy": { "allow": ["lmstudio/qwen/qwen3.5-9b"] }
+      }
+    }
+  }
+}

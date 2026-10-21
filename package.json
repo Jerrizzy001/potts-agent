@@ -1,0 +1,70 @@
+{
+  "name": "potts-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local iMessage bridge, own-agent adapters, and source-linked personal memory.",
+  "engines": {
+    "node": ">=24.12.0"
+  },
+  "scripts": {
+    "test": "node --disable-warning=ExperimentalWarning --test \"tests/**/*.test.ts\"",
+    "test:core": "node --disable-warning=ExperimentalWarning --test \"tests/core/**/*.test.ts\" \"tests/store/**/*.test.ts\" \"tests/policy/**/*.test.ts\" \"tests/approvals/**/*.test.ts\" \"tests/broker/**/*.test.ts\" \"tests/audit/**/*.test.ts\"",
+    "test:connectors": "node --disable-warning=ExperimentalWarning --test \"tests/connectors/**/*.test.ts\" \"tests/drafts/**/*.test.ts\"",
+    "typecheck": "tsc -p tsconfig.json",
+    "test:delegation": "node --disable-warning=ExperimentalWarning --test \"tests/delegation/**/*.test.ts\"",
+    "test:memory": "node --disable-warning=ExperimentalWarning --test \"tests/memory/**/*.test.ts\" \"tests/style/**/*.test.ts\"",
+    "memory": "node --disable-warning=ExperimentalWarning src/memory/cli.ts",
+    "test:wp5": "node --disable-warning=ExperimentalWarning --test \"tests/jobs/**/*.test.ts\" \"tests/monitoring/**/*.test.ts\" \"tests/notifications/**/*.test.ts\"",
+    "test:wp5:smoke": "POTTS_LIVE_SMOKE=1 node --disable-warning=ExperimentalWarning --test tests/monitoring/live-smoke.test.ts",
+    "test:openclaw": "node --disable-warning=ExperimentalWarning --test \"tests/openclaw/**/*.test.ts\" \"tests/adversarial/**/*.test.ts\"",
+    "daemon": "node --disable-warning=ExperimentalWarning src/daemon/main.ts",
+    "daemon:check": "node --disable-warning=ExperimentalWarning src/daemon/main.ts --check",
+    "status": "node --disable-warning=ExperimentalWarning src/status/cli.ts",
+    "backup": "node --disable-warning=ExperimentalWarning src/backup/cli.ts backup",
+    "restore": "node --disable-warning=ExperimentalWarning src/backup/cli.ts restore",
+    "bench:local-model": "node --disable-warning=ExperimentalWarning scripts/bench/local-model.ts",
+    "test:e2e": "node --disable-warning=ExperimentalWarning --test \"tests/e2e/**/*.test.ts\"",
+    "public:setup": "node --disable-warning=ExperimentalWarning scripts/public/cli.ts setup",
+    "public:doctor": "node --disable-warning=ExperimentalWarning scripts/public/cli.ts doctor",
+    "public:demo": "node --disable-warning=ExperimentalWarning scripts/public/cli.ts demo",
+    "public:run": "node --disable-warning=ExperimentalWarning scripts/public/cli.ts run",
+    "public:service": "node --disable-warning=ExperimentalWarning scripts/public/cli.ts service",
+    "test:portable": "node --disable-warning=ExperimentalWarning --test \"tests/portable/**/*.test.ts\"",
+    "check:public": "node scripts/check-public.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.1",
+    "@types/ws": "^8.18.2",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "croner": "10.0.1",
+    "ws": "^8.22.0"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Jerrizzy001/potts-agent.git"
+  },
+  "homepage": "https://github.com/Jerrizzy001/potts-agent",
+  "files": [
+    "src/",
+    "integrations/",
+    "migrations/",
+    "config/*.example.json",
+    "config/potts.schema.json",
+    "scripts/",
+    "deploy/",
+    "profile/",
+    "examples/",
+    "docs/",
+    "README.md",
+    "AGENTS.md",
+    "LICENSE",
+    "NOTICE",
+    "SECURITY.md",
+    "CONTRIBUTING.md",
+    "tsconfig.json"
+  ]
+}

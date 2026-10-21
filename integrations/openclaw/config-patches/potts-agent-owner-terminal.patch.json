@@ -1,0 +1,75 @@
+{
+  "agents": {
+    "entries": {
+      "main": {
+        "tools": {
+          "profile": "minimal",
+          "alsoAllow": [
+            "read",
+            "memory_search",
+            "memory_get",
+            "potts_propose_action",
+            "potts_action_status",
+            "potts_list_actions",
+            "potts_memory_explain",
+            "potts_memory_search",
+            "potts_drafts_list",
+            "potts_briefing_status",
+            "potts_capability_status",
+            "potts_read_content",
+            "potts_save_file",
+            "potts_delegation_report",
+            "potts_search_imessage",
+            "exec",
+            "process"
+          ],
+          "deny": [
+            "group:web",
+            "group:ui",
+            "group:automation",
+            "group:nodes",
+            "group:messaging",
+            "group:media",
+            "code_execution",
+            "write",
+            "edit",
+            "apply_patch",
+            "browser",
+            "computer",
+            "nodes",
+            "gateway",
+            "openclaw",
+            "plugins",
+            "automations",
+            "cron",
+            "message",
+            "secrets",
+            "sessions",
+            "sessions_send",
+            "sessions_spawn",
+            "sessions_yield",
+            "subagents",
+            "conversations_send",
+            "conversations_turn",
+            "suggest_task",
+            "github_publish",
+            "github_identity_status",
+            "presence"
+          ],
+          "fs": {
+            "workspaceOnly": true
+          },
+          "elevated": {
+            "enabled": false
+          },
+          "exec": {
+            "host": "gateway",
+            "mode": "ask",
+            "strictInlineEval": true,
+            "timeoutSeconds": 120
+          }
+        }
+      }
+    }
+  }
+}

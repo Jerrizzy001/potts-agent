@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "accounts": [
+    {
+      "id": "gmail-personal",
+      "kind": "gmail",
+      "address": "owner@example.com",
+      "mode": "not_connected",
+      "purpose": "personal",
+      "secretRefs": {
+        "oauthTokens": "keychain:potts-oauth/gmail-personal",
+        "oauthSendTokens": "keychain:potts-oauth/gmail-personal.send"
+      }
+    },
+    {
+      "id": "outlook-personal",
+      "kind": "outlook",
+      "address": "owner@example.com",
+      "mode": "not_connected",
+      "purpose": "personal",
+      "secretRefs": {
+        "oauthTokens": "keychain:potts-oauth/outlook-personal",
+        "oauthSendTokens": "keychain:potts-oauth/outlook-personal.send"
+      }
+    },
+    {
+      "id": "imessage-owner",
+      "kind": "imessage",
+      "address": "+10000000000",
+      "mode": "not_connected",
+      "purpose": "personal"
+    },
+    {
+      "id": "telegram-bot",
+      "kind": "telegram",
+      "address": "@example_potts_bot",
+      "mode": "approval_required",
+      "purpose": "owner_channel"
+    },
+    {
+      "id": "telephony-alerts",
+      "kind": "telephony",
+      "address": "+10000000001",
+      "mode": "not_connected",
+      "purpose": "owner_alert",
+      "secretRefs": {
+        "accountSid": "keychain:potts/twilio-account-sid",
+        "authToken": "keychain:potts/twilio-auth-token"
+      }
+    }
+  ]
+}

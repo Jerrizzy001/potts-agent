@@ -1,0 +1,216 @@
+{
+  "schemaVersion": 1,
+  "owner": {
+    "displayName": "Owner",
+    "telegramOwnerIdRef": "keychain:potts/telegram-owner-id",
+    "timezone": "UTC"
+  },
+  "quietHours": {
+    "start": "23:00",
+    "end": "08:00",
+    "messagesToOwner": false,
+    "callsToOwner": false,
+    "overnightEmergencyOverride": false
+  },
+  "briefings": [
+    {
+      "id": "morning",
+      "time": "09:00",
+      "content": "Priorities, deadlines, relevant messages and website status"
+    },
+    {
+      "id": "evening",
+      "time": "18:00",
+      "content": "Progress, unfinished work and approval requests"
+    },
+    {
+      "id": "night",
+      "time": "21:00",
+      "content": "Tomorrow's preparation and remaining urgent work"
+    }
+  ],
+  "accountsFile": "accounts.json",
+  "integrations": {
+    "pauseAll": false,
+    "paused": {
+      "telephony": true,
+      "imessage": true
+    }
+  },
+  "policy": {
+    "version": "2026-10-06.1",
+    "file": "policy.json"
+  },
+  "broker": {
+    "ingressKeyRef": "keychain:potts/ingress-hmac-key",
+    "executorTimeoutMs": 30000
+  },
+  "memory": {
+    "retention": {
+      "imessage": {
+        "days": 730,
+        "basis": "recorded"
+      },
+      "potts_inference": {
+        "days": 180
+      },
+      "owner_feedback": {
+        "days": null
+      }
+    },
+    "embeddings": {
+      "provider": "disabled"
+    },
+    "tombstoneJournal": true
+  },
+  "connectors": {
+    "google": {
+      "clientId": "000000000000-example.apps.googleusercontent.com",
+      "clientSecretRef": "keychain:potts/google-oauth-client-secret"
+    },
+    "microsoft": {
+      "clientId": "00000000-0000-0000-0000-000000000000",
+      "tenant": "organizations",
+      "sendClientId": "00000000-0000-0000-0000-000000000001"
+    },
+    "tokenStore": {
+      "keychainService": "potts-oauth"
+    },
+    "mail": {
+      "fullSyncQuery": "newer_than:30d -in:sent -in:drafts -in:chats",
+      "maxFullSyncMessages": 500,
+      "initialWindowDays": 30,
+      "schoolDomains": [],
+      "localClassifier": {
+        "enabled": false,
+        "baseUrl": "http://127.0.0.1:1234",
+        "model": "qwen/qwen3.5-9b"
+      }
+    }
+  },
+  "monitoring": {
+    "enabled": false,
+    "connectivityProbes": [
+      "https://1.1.1.1/cdn-cgi/trace",
+      "https://www.apple.com/library/test/success.html"
+    ],
+    "sites": []
+  },
+  "notifications": {
+    "ownerInitiatedReplyDuringQuiet": false,
+    "briefingGraceMinutes": 120,
+    "summarizer": {
+      "enabled": false,
+      "baseUrl": "http://127.0.0.1:1234",
+      "model": "qwen/qwen3.5-9b",
+      "timeoutMs": 90000
+    }
+  },
+  "projects": {
+    "file": "projects.json"
+  },
+  "delegation": {
+    "limits": {
+      "maxDepth": 2,
+      "maxTasksPerRoot": 8,
+      "maxAttemptsPerRoot": 12,
+      "maxConcurrentWorkers": 2,
+      "maxConcurrentPerProject": 1,
+      "maxAttemptsPerTask": 2,
+      "defaultDeadlineMinutes": 120
+    },
+    "routing": {
+      "localContextTokenBudget": 24000,
+      "maxLocalAttempts": 2,
+      "substantialFilesChanged": 3,
+      "substantialLinesChanged": 150
+    },
+    "claudeCode": {
+      "enabled": false,
+      "command": "claude",
+      "timeoutSeconds": 3600,
+      "billing": "subscription",
+      "acceptedAuthMethods": [
+        "claude.ai",
+        "oauth_token"
+      ],
+      "oauthTokenRef": "keychain:potts/claude-worker-oauth-token",
+      "networkAllowlist": [
+        "api.anthropic.com",
+        "claude.ai",
+        "console.anthropic.com",
+        "statsig.anthropic.com"
+      ]
+    },
+    "external": {
+      "mode": "manual"
+    },
+    "paidUsage": {
+      "onAllowanceExhausted": "propose_purchase"
+    }
+  },
+  "writers": {
+    "lookupSettleSeconds": 600,
+    "accounts": [
+      {
+        "accountId": "gmail-personal",
+        "enabled": false,
+        "kinds": [
+          "send_message"
+        ]
+      },
+      {
+        "accountId": "outlook-personal",
+        "enabled": false,
+        "kinds": [
+          "send_message"
+        ]
+      },
+      {
+        "accountId": "imessage-owner",
+        "enabled": false,
+        "kinds": [
+          "send_message"
+        ]
+      }
+    ]
+  },
+  "support": {
+    "enabled": false,
+    "knowledgeDir": "support-knowledge",
+    "confidenceThreshold": 0.85,
+    "maxStatusAgeHours": 24,
+    "apps": [],
+    "channels": []
+  },
+  "telephony": {
+    "enabled": false,
+    "provider": "twilio",
+    "accountId": "telephony-alerts",
+    "publicBaseUrl": "https://potts-calls.example.ts.net",
+    "webhook": {
+      "host": "127.0.0.1",
+      "port": 8790
+    },
+    "machineDetection": true,
+    "ringTimeoutSeconds": 25,
+    "twilio": {
+      "accountSidRef": "keychain:potts/twilio-account-sid",
+      "authTokenRef": "keychain:potts/twilio-auth-token"
+    }
+  },
+  "daemon": {
+    "readSocket": true,
+    "memoryControlSocket": true,
+    "ownerChannel": "plugin-socket",
+    "auditHeadIntervalMinutes": 15,
+    "tickMs": 5000,
+    "autoExecuteReady": true
+  },
+  "backup": {
+    "enabled": true,
+    "dir": "backups",
+    "keep": 14,
+    "dailyTime": "03:30"
+  }
+}

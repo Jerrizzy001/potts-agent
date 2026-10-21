@@ -1,0 +1,15 @@
+#!/bin/bash
+# potts-transcribe <audio file>  ->  prints a plain-text transcript (local whisper.cpp, nothing leaves the Mac).
+# Used by OpenClaw tools.media audio (type cli) for inbound Telegram voice notes (Ogg/Opus), and by Potts directly.
+set -euo pipefail
+in="${1:?usage: potts-transcribe <audio>}"
+model="${POTTS_WHISPER_MODEL:-$HOME/Library/Application Support/Potts/models/ggml-base.en.bin}"
+[[ -f "$model" ]] || { echo "transcription model missing: $model" >&2; exit 2; }
+tmp="$(mktemp -t potts-stt).wav"; trap 'rm -f "$tmp"' EXIT
+if [[ -x /opt/homebrew/bin/ffmpeg ]]; then
+  /opt/homebrew/bin/ffmpeg -nostdin -loglevel error -y -i "$in" -ar 16000 -ac 1 -c:a pcm_s16le "$tmp"
+else
+  /usr/bin/afconvert -f WAVE -d LEI16@16000 -c 1 "$in" "$tmp" >/dev/null
+fi
+/opt/homebrew/bin/whisper-cli -m "$model" -f "$tmp" -nt -np -l "${POTTS_WHISPER_LANG:-en}" 2>/dev/null | sed -e 's/^[[:space:]]*//' -e '/^$/d' | tr '\n' ' ' | sed 's/[[:space:]]*$//'
+echo

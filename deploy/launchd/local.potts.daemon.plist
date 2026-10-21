@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Potts daemon LaunchAgent TEMPLATE. Do not copy this file by hand:
+  deploy/launchd/install-daemon.sh substitutes the at-sign placeholders
+  (XML-escaped) and installs the result as
+  ~/Library/LaunchAgents/local.potts.daemon.plist.
+
+  Placeholders: NODE (absolute path to node >= 24.12), REPO (absolute repo
+  path), POTTS_HOME (runtime state outside Git), LOG_DIR (POTTS_HOME/logs).
+  Placeholders appear only in string values, never inside this comment.
+
+  KeepAlive/SuccessfulExit=false: launchd restarts the daemon only when it
+  crashes or exits non-zero; a clean SIGTERM drain that exits 0 stays down.
+  ProcessType=Standard (not Background): Background applies low CPU/IO
+  priority and aggressive timer coalescing, which would delay the 60 s
+  website checks, scheduled briefings and owner approvals. The daemon itself
+  is lightweight (model inference runs in the separate LM Studio service).
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>local.potts.daemon</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>@NODE@</string>
+		<string>--disable-warning=ExperimentalWarning</string>
+		<string>@REPO@/src/daemon/main.ts</string>
+	</array>
+	<key>WorkingDirectory</key>
+	<string>@REPO@</string>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<dict>
+		<key>SuccessfulExit</key>
+		<false/>
+	</dict>
+	<key>ThrottleInterval</key>
+	<integer>30</integer>
+	<key>ExitTimeOut</key>
+	<integer>30</integer>
+	<key>ProcessType</key>
+	<string>Standard</string>
+	<key>Umask</key>
+	<integer>63</integer>
+	<key>StandardOutPath</key>
+	<string>@LOG_DIR@/daemon.out.log</string>
+	<key>StandardErrorPath</key>
+	<string>@LOG_DIR@/daemon.err.log</string>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>POTTS_HOME</key>
+		<string>@POTTS_HOME@</string>
+		<key>PATH</key>
+		<string>/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin</string>
+		<key>NODE_ENV</key>
+		<string>production</string>
+	</dict>
+</dict>
+</plist>

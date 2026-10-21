@@ -1,0 +1,1727 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://potts.local/schema/potts.schema.json",
+  "title": "Potts configuration",
+  "description": "Owner configuration. Contains identifiers and secret references only (keychain:<service>/<account> or env:<NAME>), never secret values. Other work packages add their own top-level section here (additively) together with its schema.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "owner",
+    "quietHours",
+    "briefings",
+    "integrations",
+    "policy"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "owner": {
+      "type": "object",
+      "required": [
+        "telegramOwnerIdRef",
+        "timezone"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "displayName": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "telegramOwnerIdRef": {
+          "$ref": "#/$defs/secretRef",
+          "description": "Reference to the owner's numeric Telegram user id (the only sender whose updates the trusted ingress accepts)."
+        },
+        "timezone": {
+          "type": "string",
+          "pattern": "^[A-Za-z_]+(/[A-Za-z0-9_+-]+)*$"
+        },
+        "alertPhoneRef": {
+          "$ref": "#/$defs/secretRef"
+        },
+        "channel": {
+          "enum": [
+            "telegram",
+            "imessage"
+          ]
+        },
+        "imessageOwnerId": {
+          "type": "string",
+          "pattern": "^\\+[1-9]\\d{7,14}$"
+        }
+      }
+    },
+    "quietHours": {
+      "type": "object",
+      "required": [
+        "start",
+        "end",
+        "messagesToOwner",
+        "callsToOwner"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "start": {
+          "$ref": "#/$defs/hhmm"
+        },
+        "end": {
+          "$ref": "#/$defs/hhmm"
+        },
+        "messagesToOwner": {
+          "type": "boolean"
+        },
+        "callsToOwner": {
+          "type": "boolean"
+        },
+        "overnightEmergencyOverride": {
+          "type": "boolean"
+        }
+      }
+    },
+    "briefings": {
+      "type": "array",
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "time",
+          "content"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/slug"
+          },
+          "time": {
+            "$ref": "#/$defs/hhmm"
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "enabled": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "accountsFile": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Path (relative to this file) of the accounts registry document; see $defs/accountsDocument."
+    },
+    "accounts": {
+      "$ref": "#/$defs/accountList"
+    },
+    "integrations": {
+      "type": "object",
+      "description": "Static per-integration pause flags. Runtime pauses set by the owner live in the broker database and override these only towards 'more paused'.",
+      "required": [
+        "pauseAll"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "pauseAll": {
+          "type": "boolean"
+        },
+        "paused": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "gmail": {
+              "type": "boolean"
+            },
+            "outlook": {
+              "type": "boolean"
+            },
+            "imessage": {
+              "type": "boolean"
+            },
+            "telegram": {
+              "type": "boolean"
+            },
+            "telephony": {
+              "type": "boolean"
+            },
+            "github": {
+              "type": "boolean"
+            },
+            "deploy": {
+              "type": "boolean"
+            },
+            "support": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "required": [
+        "version",
+        "file"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._-]{1,64}$"
+        },
+        "file": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Owner-only policy document (mode 0600, not writable by the model/worker account). Relative paths resolve against POTTS_HOME."
+        }
+      }
+    },
+    "broker": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "socketPath": {
+          "type": "string"
+        },
+        "ingressSocketPath": {
+          "type": "string"
+        },
+        "ingressKeyRef": {
+          "$ref": "#/$defs/secretRef"
+        },
+        "executorTimeoutMs": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 600000
+        }
+      }
+    },
+    "memory": {
+      "type": "object",
+      "description": "WP-3 local memory. Retention is per source kind (owner decision); embeddings are local-only and disabled by default.",
+      "additionalProperties": false,
+      "properties": {
+        "retention": {
+          "type": "object",
+          "description": "Map of source kind (e.g. imessage, gmail, potts_inference) to a retention rule. Kinds not listed are kept until forgotten.",
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "days"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "days": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 1,
+                "maximum": 36500
+              },
+              "basis": {
+                "enum": [
+                  "recorded",
+                  "observed"
+                ]
+              }
+            }
+          }
+        },
+        "embeddings": {
+          "type": "object",
+          "required": [
+            "provider"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "provider": {
+              "enum": [
+                "disabled",
+                "lmstudio"
+              ]
+            },
+            "url": {
+              "type": "string",
+              "pattern": "^https?://(127\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}|\\[::1\\])(:[0-9]{1,5})?(/.*)?$",
+              "description": "Loopback IP literal only; no cloud fallback."
+            },
+            "model": {
+              "type": "string",
+              "maxLength": 200
+            }
+          }
+        },
+        "tombstoneJournal": {
+          "type": "boolean",
+          "description": "Also append content-free deletion tombstones to $POTTS_HOME/memory/tombstones.jsonl (default true)."
+        }
+      }
+    },
+    "projects": {
+      "type": "object",
+      "required": [
+        "file"
+      ],
+      "additionalProperties": false,
+      "description": "WP-6 project registry: approved URLs mapped to repositories, test/build commands, deployment targets, release scripts and CI trigger notes. The file holds identifiers and secret references only; see $defs/projectsDocument.",
+      "properties": {
+        "file": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Path (relative to this file) of the projects registry document."
+        }
+      }
+    },
+    "delegation": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "WP-6 delegation limits, routing and worker adapters. Defaults apply for omitted fields.",
+      "properties": {
+        "limits": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "maxDepth": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 5
+            },
+            "maxTasksPerRoot": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "maxAttemptsPerRoot": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            },
+            "maxConcurrentWorkers": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 8
+            },
+            "maxConcurrentPerProject": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 8
+            },
+            "maxAttemptsPerTask": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10
+            },
+            "defaultDeadlineMinutes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10080
+            }
+          }
+        },
+        "routing": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "localContextTokenBudget": {
+              "type": "integer",
+              "minimum": 1000,
+              "maximum": 1000000
+            },
+            "maxLocalAttempts": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10
+            },
+            "substantialFilesChanged": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000
+            },
+            "substantialLinesChanged": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000
+            }
+          }
+        },
+        "claudeCode": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "command": {
+              "type": "string",
+              "minLength": 1
+            },
+            "model": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9._-]{1,64}$"
+            },
+            "timeoutSeconds": {
+              "type": "integer",
+              "minimum": 30,
+              "maximum": 14400
+            },
+            "billing": {
+              "enum": [
+                "subscription",
+                "separately_billed"
+              ]
+            },
+            "acceptedAuthMethods": {
+              "type": "array",
+              "maxItems": 8,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "oauthTokenRef": {
+              "$ref": "#/$defs/secretRef"
+            },
+            "networkAllowlist": {
+              "type": "array",
+              "maxItems": 32,
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9*.-]{1,253}$"
+              }
+            },
+            "extraArgs": {
+              "type": "array",
+              "maxItems": 16,
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "external": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "mode": {
+              "enum": [
+                "manual",
+                "verified_route"
+              ]
+            },
+            "routeEvidence": {
+              "type": "string",
+              "maxLength": 2000
+            }
+          }
+        },
+        "paidUsage": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "onAllowanceExhausted": {
+              "enum": [
+                "wait",
+                "propose_purchase"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "connectors": {
+      "type": "object",
+      "description": "WP-4 connector settings: OAuth clients (ids + secret references), token store, mail sync. Never contains tokens.",
+      "additionalProperties": false,
+      "properties": {
+        "google": {
+          "type": "object",
+          "required": [
+            "clientId",
+            "clientSecretRef"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "clientId": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9._-]+\\.apps\\.googleusercontent\\.com$",
+              "description": "Google Cloud OAuth client of type Desktop app."
+            },
+            "clientSecretRef": {
+              "$ref": "#/$defs/secretRef"
+            }
+          }
+        },
+        "microsoft": {
+          "type": "object",
+          "required": [
+            "clientId"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "clientId": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F-]{36}$",
+              "description": "Entra ID app registration (public client, device code flow enabled)."
+            },
+            "tenant": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9.-]{1,128}$",
+              "description": "organizations (default), a tenant id, or a verified domain."
+            },
+            "sendClientId": {
+              "type": "string",
+              "pattern": "^[0-9a-fA-F-]{36}$",
+              "description": "Optional SEPARATE app registration (public client) used only for Outlook send credentials (Mail.Send, Mail.ReadWrite). Kept apart from clientId so the read-only reader's tokens never carry write scopes."
+            }
+          }
+        },
+        "tokenStore": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "keychainService": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9._-]{1,128}$"
+            }
+          }
+        },
+        "mail": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "fullSyncQuery": {
+              "type": "string",
+              "maxLength": 500
+            },
+            "maxFullSyncMessages": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5000
+            },
+            "initialWindowDays": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365
+            },
+            "schoolDomains": {
+              "type": "array",
+              "maxItems": 20,
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z0-9.-]+$"
+              }
+            },
+            "localClassifier": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": {
+                  "type": "boolean"
+                },
+                "baseUrl": {
+                  "type": "string",
+                  "pattern": "^http://(127\\.0\\.0\\.1|localhost|\\[::1\\]):[0-9]{1,5}/?$"
+                },
+                "model": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              }
+            }
+          }
+        },
+        "imessage": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "readEnabled",
+            "accountId"
+          ],
+          "properties": {
+            "readEnabled": {
+              "type": "boolean"
+            },
+            "accountId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          }
+        }
+      }
+    },
+    "monitoring": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "WP-5 website monitoring. Local monitor only: it cannot check while the Mac is asleep or offline.",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "connectivityProbes": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 6,
+          "items": {
+            "type": "string",
+            "pattern": "^https://"
+          }
+        },
+        "sites": {
+          "type": "array",
+          "maxItems": 10,
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "baseUrl"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/slug"
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 80
+              },
+              "baseUrl": {
+                "type": "string",
+                "pattern": "^https://"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "homepagePath": {
+                "type": "string",
+                "pattern": "^/[^\\s\\\\]*$",
+                "maxLength": 300
+              },
+              "healthPath": {
+                "type": "string",
+                "pattern": "^/[^\\s\\\\]*$",
+                "maxLength": 300
+              },
+              "readiness": {
+                "type": "object",
+                "required": [
+                  "path",
+                  "tokenRef"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "pattern": "^/[^\\s\\\\]*$",
+                    "maxLength": 300
+                  },
+                  "tokenRef": {
+                    "$ref": "#/$defs/secretRef"
+                  }
+                }
+              },
+              "journeys": {
+                "type": "array",
+                "maxItems": 10,
+                "description": "GET-only read checks of a critical user journey.",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "name",
+                    "path"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "name": {
+                      "$ref": "#/$defs/slug"
+                    },
+                    "path": {
+                      "type": "string",
+                      "pattern": "^/[^\\s\\\\]*$",
+                      "maxLength": 300
+                    },
+                    "expectStatus": {
+                      "type": "array",
+                      "items": {
+                        "type": "integer",
+                        "minimum": 100,
+                        "maximum": 599
+                      }
+                    },
+                    "mustContain": {
+                      "type": "string",
+                      "maxLength": 200
+                    },
+                    "maxLatencyMs": {
+                      "type": "integer",
+                      "minimum": 100
+                    }
+                  }
+                }
+              },
+              "intervalSeconds": {
+                "type": "integer",
+                "minimum": 30,
+                "maximum": 3600
+              },
+              "timeoutMs": {
+                "type": "integer",
+                "minimum": 1000,
+                "maximum": 60000
+              },
+              "outageConfirmSeconds": {
+                "type": "integer",
+                "minimum": 60
+              },
+              "minConsecutiveFailures": {
+                "type": "integer",
+                "minimum": 2,
+                "maximum": 60
+              },
+              "recoveryConsecutiveSuccesses": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 60
+              },
+              "maintenanceWindows": {
+                "type": "array",
+                "maxItems": 50,
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "start",
+                    "end"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "start": {
+                      "type": "string"
+                    },
+                    "end": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "maxLength": 200
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "notifications": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "WP-5 owner notifications and briefings.",
+      "properties": {
+        "ownerInitiatedReplyDuringQuiet": {
+          "type": "boolean",
+          "description": "Pilot decision. Default false: strict quiet hours even for replies to owner-initiated chat."
+        },
+        "briefingGraceMinutes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 720
+        },
+        "summarizer": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "provider": {
+              "enum": [
+                "lmstudio",
+                "openclaw"
+              ]
+            },
+            "baseUrl": {
+              "type": "string",
+              "pattern": "^http://(127\\.0\\.0\\.1|localhost)(:[0-9]+)?$"
+            },
+            "model": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "timeoutMs": {
+              "type": "integer",
+              "minimum": 1000,
+              "maximum": 300000
+            }
+          }
+        }
+      }
+    },
+    "writers": {
+      "type": "object",
+      "description": "WP-7 broker-owned message writers. Nothing sends unless an account is listed here with enabled=true; every send still needs an exact owner approval.",
+      "required": [
+        "accounts"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "lookupSettleSeconds": {
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 86400
+        },
+        "accounts": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "type": "object",
+            "required": [
+              "accountId",
+              "enabled"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "accountId": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "kinds": {
+                "type": "array",
+                "minItems": 1,
+                "uniqueItems": true,
+                "items": {
+                  "enum": [
+                    "send_message",
+                    "support_reply"
+                  ]
+                }
+              },
+              "messagesAccountId": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9-]{1,64}$"
+              }
+            }
+          }
+        }
+      }
+    },
+    "support": {
+      "type": "object",
+      "description": "WP-7 customer support. Disabled and shadow-only by default; automatic replies also need the owner policy (support.mode=active, registeredChannels, approvedKnowledgeIds).",
+      "required": [
+        "enabled",
+        "knowledgeDir",
+        "confidenceThreshold",
+        "apps",
+        "channels"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "knowledgeDir": {
+          "type": "string",
+          "minLength": 1
+        },
+        "confidenceThreshold": {
+          "type": "number",
+          "minimum": 0.5,
+          "maximum": 0.99
+        },
+        "maxStatusAgeHours": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 720
+        },
+        "apps": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "name"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              }
+            }
+          }
+        },
+        "channels": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "kind",
+              "app",
+              "enabled",
+              "mode"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$"
+              },
+              "kind": {
+                "enum": [
+                  "in_app",
+                  "support_email",
+                  "website_chat"
+                ]
+              },
+              "app": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$"
+              },
+              "accountId": {
+                "type": "string",
+                "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$"
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "mode": {
+                "enum": [
+                  "shadow",
+                  "automatic"
+                ]
+              },
+              "signature": {
+                "type": "string",
+                "maxLength": 120
+              }
+            }
+          }
+        }
+      }
+    },
+    "telephony": {
+      "type": "object",
+      "description": "WP-7 owner alert calls. Disabled by default. Not an emergency service. The owner number is owner.alertPhoneRef.",
+      "required": [
+        "enabled",
+        "provider",
+        "accountId",
+        "publicBaseUrl",
+        "webhook",
+        "machineDetection",
+        "ringTimeoutSeconds",
+        "twilio"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "provider": {
+          "enum": [
+            "twilio"
+          ]
+        },
+        "accountId": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$"
+        },
+        "publicBaseUrl": {
+          "type": "string",
+          "pattern": "^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?$"
+        },
+        "webhook": {
+          "type": "object",
+          "required": [
+            "host",
+            "port"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "host": {
+              "enum": [
+                "127.0.0.1",
+                "::1"
+              ]
+            },
+            "port": {
+              "type": "integer",
+              "minimum": 1024,
+              "maximum": 65535
+            }
+          }
+        },
+        "machineDetection": {
+          "type": "boolean"
+        },
+        "ringTimeoutSeconds": {
+          "type": "integer",
+          "minimum": 10,
+          "maximum": 60
+        },
+        "twilio": {
+          "type": "object",
+          "required": [
+            "accountSidRef",
+            "authTokenRef"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "accountSidRef": {
+              "$ref": "#/$defs/secretRef"
+            },
+            "authTokenRef": {
+              "$ref": "#/$defs/secretRef"
+            },
+            "apiKeySidRef": {
+              "$ref": "#/$defs/secretRef"
+            },
+            "apiKeySecretRef": {
+              "$ref": "#/$defs/secretRef"
+            },
+            "voice": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9._-]{1,64}$"
+            }
+          }
+        },
+        "conversation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "enabled",
+            "model",
+            "baseUrl",
+            "maxSeconds"
+          ],
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "model": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "baseUrl": {
+              "type": "string",
+              "pattern": "^http://(127\\.0\\.0\\.1|localhost):[0-9]+$"
+            },
+            "maxSeconds": {
+              "type": "integer",
+              "minimum": 30,
+              "maximum": 600
+            }
+          }
+        }
+      }
+    },
+    "daemon": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "WP-8 daemon wiring. All optional.",
+      "properties": {
+        "readSocket": {
+          "type": "boolean",
+          "description": "Serve run/read.sock (memory search, drafts, briefing and capability status) for the plugin read tools. Default true."
+        },
+        "memoryControlSocket": {
+          "type": "boolean",
+          "description": "Serve run/memory-control.sock for verified owner /forget. Default true."
+        },
+        "ownerChannel": {
+          "enum": [
+            "plugin-socket",
+            "none"
+          ],
+          "description": "plugin-socket (default): notifications go through run/owner-channel.sock served by the potts-broker plugin."
+        },
+        "ownerChannelSocket": {
+          "type": "string"
+        },
+        "auditHeadIntervalMinutes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1440
+        },
+        "tickMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 60000
+        },
+        "autoExecuteReady": {
+          "type": "boolean",
+          "description": "Dispatch ready (approved or allowed) actions on the next tick. Default true."
+        },
+        "policyWatch": {
+          "type": "boolean",
+          "description": "Reload policy.json when it changes on disk (SIGHUP always reloads). Invalid files are rejected and the current policy stays. Default true."
+        },
+        "logRotation": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "Size-based rotation of logs/daemon.out.log and logs/daemon.err.log (copy-truncate, mode 0600).",
+          "properties": {
+            "maxBytes": {
+              "type": "integer",
+              "minimum": 65536,
+              "maximum": 1073741824,
+              "description": "Rotate above this size. Default 10485760 (10 MiB)."
+            },
+            "keep": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "description": "Rotated files to keep. Default 5."
+            }
+          }
+        }
+      }
+    },
+    "backup": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "WP-8 backups of the broker DB and config files (mode 0600, rotated).",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "dir": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Relative to POTTS_HOME unless absolute. Default backups."
+        },
+        "keep": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 365
+        },
+        "dailyTime": {
+          "$ref": "#/$defs/hhmm"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "secretRef": {
+      "type": "string",
+      "pattern": "^(keychain:[^/\\s]+/[^\\s]+|env:[A-Z_][A-Z0-9_]*)$"
+    },
+    "hhmm": {
+      "type": "string",
+      "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+    },
+    "slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]{0,63}$"
+    },
+    "accountKind": {
+      "enum": [
+        "gmail",
+        "outlook",
+        "imessage",
+        "telegram",
+        "telephony"
+      ]
+    },
+    "accountMode": {
+      "enum": [
+        "not_connected",
+        "read_only",
+        "draft_only",
+        "approval_required",
+        "automatic"
+      ]
+    },
+    "account": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "address",
+        "mode"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/slug"
+        },
+        "kind": {
+          "$ref": "#/$defs/accountKind"
+        },
+        "address": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 320,
+          "description": "Exact account identity (email address, phone number, portal user, bot username)."
+        },
+        "mode": {
+          "$ref": "#/$defs/accountMode"
+        },
+        "label": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "purpose": {
+          "enum": [
+            "personal",
+            "support",
+            "owner_alert",
+            "owner_channel"
+          ]
+        },
+        "secretRefs": {
+          "type": "object",
+          "description": "Informational: where this account's secrets live, as references (never values). They must match the real storage locations: OAuth token bundles are written by scripts/connect-account.ts to keychain:<connectors.tokenStore.keychainService>/<id> (read) and .../<id>.send (send); Twilio credentials are telephony.twilio.*Ref. The daemon resolves secrets from those settings, not from secretRefs; tests/core/accounts-example.test.ts keeps the example consistent.",
+          "additionalProperties": {
+            "$ref": "#/$defs/secretRef"
+          }
+        }
+      }
+    },
+    "accountList": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "$ref": "#/$defs/account"
+      }
+    },
+    "accountsDocument": {
+      "type": "object",
+      "required": [
+        "schemaVersion",
+        "accounts"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "$schema": {
+          "type": "string"
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "accounts": {
+          "$ref": "#/$defs/accountList"
+        }
+      }
+    },
+    "commandSpec": {
+      "type": "object",
+      "required": [
+        "id",
+        "argv"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/slug"
+        },
+        "argv": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          }
+        },
+        "timeoutSeconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 14400
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "phase": {
+          "enum": [
+            "pre",
+            "release"
+          ]
+        }
+      }
+    },
+    "commandList": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "$ref": "#/$defs/commandSpec"
+      }
+    },
+    "deployCheck": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": [
+            "http",
+            "http_header",
+            "http_json",
+            "command"
+          ]
+        },
+        "url": {
+          "type": "string",
+          "pattern": "^https?://"
+        },
+        "header": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "field": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "argv": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096
+          }
+        },
+        "expectStatus": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 599
+        },
+        "expectJson": {
+          "type": "object"
+        },
+        "bodyIncludes": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "timeoutSeconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1800
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 500
+        }
+      }
+    },
+    "deploymentTarget": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind",
+        "url",
+        "sourceBranch"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/slug"
+        },
+        "kind": {
+          "enum": [
+            "cloudflare_workers",
+            "static_site",
+            "other"
+          ]
+        },
+        "url": {
+          "type": "string",
+          "pattern": "^https://"
+        },
+        "sourceBranch": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._/-]{1,200}$"
+        },
+        "workers": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "type": "string",
+            "maxLength": 200
+          }
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "identityChecks": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/deployCheck"
+          }
+        },
+        "liveChecks": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/deployCheck"
+          }
+        }
+      }
+    },
+    "ciTrigger": {
+      "type": "object",
+      "required": [
+        "event"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "event": {
+          "enum": [
+            "push",
+            "pull_request",
+            "pull_request_target",
+            "workflow_dispatch",
+            "schedule",
+            "release",
+            "tag"
+          ]
+        },
+        "branches": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
+        },
+        "tags": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
+        }
+      }
+    },
+    "ciWorkflow": {
+      "type": "object",
+      "required": [
+        "file",
+        "triggers",
+        "deploys"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "triggers": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/ciTrigger"
+          }
+        },
+        "deploys": {
+          "type": "boolean"
+        },
+        "usesSecrets": {
+          "type": "boolean"
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 2000
+        }
+      }
+    },
+    "releaseCheck": {
+      "type": "object",
+      "required": [
+        "id",
+        "pathPatterns",
+        "commands"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/slug"
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "pathPatterns": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512
+          }
+        },
+        "commands": {
+          "$ref": "#/$defs/commandList"
+        },
+        "runbook": {
+          "type": "string",
+          "maxLength": 500
+        }
+      }
+    },
+    "project": {
+      "type": "object",
+      "required": [
+        "id",
+        "urls",
+        "repoPath",
+        "remoteUrl",
+        "defaultBranch",
+        "testCommands",
+        "ci",
+        "worker"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/slug"
+        },
+        "displayName": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "urls": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^https://[a-z0-9.-]+(:[0-9]+)?/?$"
+          }
+        },
+        "repoPath": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "remoteUrl": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "defaultBranch": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._/-]{1,200}$"
+        },
+        "setupCommands": {
+          "$ref": "#/$defs/commandList"
+        },
+        "testCommands": {
+          "$ref": "#/$defs/commandList"
+        },
+        "buildCommands": {
+          "$ref": "#/$defs/commandList"
+        },
+        "releaseChecks": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/releaseCheck"
+          }
+        },
+        "deploymentTargets": {
+          "type": "array",
+          "maxItems": 16,
+          "items": {
+            "$ref": "#/$defs/deploymentTarget"
+          }
+        },
+        "release": {
+          "type": "object",
+          "required": [
+            "enabled",
+            "commands"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "commands": {
+              "$ref": "#/$defs/commandList"
+            },
+            "credentialEnv": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/secretRef"
+              }
+            },
+            "envAllowlist": {
+              "type": "array",
+              "maxItems": 64,
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Z_][A-Z0-9_]*$"
+              }
+            },
+            "env": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string",
+                "maxLength": 4096
+              }
+            },
+            "allowSshAgent": {
+              "type": "boolean"
+            },
+            "notes": {
+              "type": "string",
+              "maxLength": 4000
+            }
+          }
+        },
+        "ci": {
+          "type": "object",
+          "required": [
+            "provider",
+            "workflows"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "provider": {
+              "enum": [
+                "github_actions",
+                "none"
+              ]
+            },
+            "workflows": {
+              "type": "array",
+              "maxItems": 64,
+              "items": {
+                "$ref": "#/$defs/ciWorkflow"
+              }
+            },
+            "workflowPathPatterns": {
+              "type": "array",
+              "maxItems": 32,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              }
+            },
+            "notes": {
+              "type": "string",
+              "maxLength": 4000
+            }
+          }
+        },
+        "worker": {
+          "type": "object",
+          "required": [
+            "envAllowlist"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "envAllowlist": {
+              "type": "array",
+              "maxItems": 64,
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Z_][A-Z0-9_]*$"
+              }
+            },
+            "env": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string",
+                "maxLength": 4096
+              }
+            },
+            "setupNetwork": {
+              "type": "array",
+              "maxItems": 32,
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9*.-]{1,253}$"
+              }
+            },
+            "testNetwork": {
+              "type": "array",
+              "maxItems": 32,
+              "items": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9*.-]{1,253}$"
+              }
+            }
+          }
+        },
+        "workingCopy": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "excludePatterns": {
+              "type": "array",
+              "maxItems": 64,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 512
+              }
+            }
+          }
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 4000
+        }
+      }
+    },
+    "projectsDocument": {
+      "type": "object",
+      "required": [
+        "schemaVersion",
+        "projects"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "$schema": {
+          "type": "string"
+        },
+        "schemaVersion": {
+          "const": 1
+        },
+        "projects": {
+          "type": "array",
+          "maxItems": 64,
+          "items": {
+            "$ref": "#/$defs/project"
+          }
+        }
+      }
+    }
+  }
+}

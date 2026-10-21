@@ -1,0 +1,24 @@
+#!/bin/bash
+# potts-say "<text>" [name]  ->  prints the path of a Telegram voice note (Ogg/Opus) in the OpenClaw outbox.
+# Voice: Kokoro (local neural TTS via mlx-audio), $POTTS_VOICE (default af_heart). Falls back to macOS say if Kokoro fails.
+# Reply with:  [[audio_as_voice]]  and  MEDIA: <printed path>
+set -euo pipefail
+text="${1:?usage: potts-say \"text\" [name]}"
+name="${2:-voice-$(date +%Y%m%d-%H%M%S)}"; name="${name//[^A-Za-z0-9_-]/_}"
+voice="${POTTS_VOICE:-af_heart}"
+home="${POTTS_HOME:-$HOME/Library/Application Support/Potts}"
+venv="$home/voice-venv"
+out_dir="${POTTS_OUTBOX:-$HOME/.openclaw/workspace/outbox}"; mkdir -p "$out_dir"
+work="$(mktemp -d -t potts-say)"; trap 'rm -rf "$work"' EXIT
+wav=""
+if [[ -x "$venv/bin/python" ]]; then
+  ( cd "$work" && VIRTUAL_ENV="$venv" PATH="$venv/bin:$PATH" HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}" \
+      "$venv/bin/python" -m mlx_audio.tts.generate --model prince-canuma/Kokoro-82M --voice "$voice" --lang_code a \
+      --speed "${POTTS_VOICE_SPEED:-1.0}" --text "$text" --file_prefix out --audio_format wav --join_audio >/dev/null 2>&1 ) || true
+  wav="$(ls "$work"/out*.wav 2>/dev/null | head -1 || true)"
+fi
+if [[ -z "$wav" ]]; then
+  wav="$work/fallback.aiff"; /usr/bin/say -v Samantha -o "$wav" -- "$text"
+fi
+/opt/homebrew/bin/ffmpeg -nostdin -loglevel error -y -i "$wav" -c:a libopus -b:a 32k -ac 1 -ar 48000 "$out_dir/$name.ogg"
+echo "$out_dir/$name.ogg"

@@ -1,0 +1,89 @@
+#!/bin/bash
+# Potts worker wrapper (WP-2). Installed by create-worker-user.sh as
+#   /usr/local/libexec/potts/potts-worker-run   (root:wheel, 0755)
+# and allowed by exactly one sudoers rule:
+#   <owner> ALL=(potts-worker) NOPASSWD: /usr/local/libexec/potts/potts-worker-run
+#
+# Runs ONE job as potts-worker inside a Seatbelt profile, with:
+#   - workspace restricted to a directory under /Users/Shared/potts-jobs/
+#   - a clean environment (only the variables in the per-job env file, which is
+#     read and deleted here, so secrets never travel in argv)
+#   - HOME/TMPDIR from the job env (default: the worker's own home), umask 027
+#   - a hard wall-clock limit (perl alarm survives the exec chain)
+#
+# Usage (called by src/workers/isolation/dedicated-user-runner.ts):
+#   potts-worker-run --workspace DIR --cwd DIR --timeout-sec N --env-file FILE --profile-b64 B64 -- CMD [ARGS...]
+set -euo pipefail
+
+JOBS_ROOT="/Users/Shared/potts-jobs"
+WORKER="potts-worker"
+
+die() { echo "potts-worker-run: $*" >&2; exit 64; }
+
+[[ "$(/usr/bin/id -un)" == "$WORKER" ]] || die "must run as $WORKER (via sudo -u $WORKER)"
+
+ws="" cwd="" timeout="" envfile="" prof=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --workspace) ws="${2:-}"; shift 2 ;;
+    --cwd) cwd="${2:-}"; shift 2 ;;
+    --timeout-sec) timeout="${2:-}"; shift 2 ;;
+    --env-file) envfile="${2:-}"; shift 2 ;;
+    --profile-b64) prof="${2:-}"; shift 2 ;;
+    --) shift; break ;;
+    *) die "unknown argument" ;;
+  esac
+done
+[[ $# -ge 1 ]] || die "missing command"
+[[ -n "$ws" && -n "$cwd" && -n "$timeout" && -n "$prof" ]] || die "missing required option"
+[[ "$timeout" =~ ^[0-9]+$ ]] && (( timeout >= 1 && timeout <= 21600 )) || die "bad timeout"
+
+root_real="$(cd "$JOBS_ROOT" && pwd -P)" || die "jobs root missing"
+ws_real="$(cd "$ws" 2>/dev/null && pwd -P)" || die "workspace not accessible"
+case "$ws_real/" in
+  "$root_real"/?*/) ;;
+  *) die "workspace must be under $JOBS_ROOT" ;;
+esac
+cwd_real="$(cd "$cwd" 2>/dev/null && pwd -P)" || die "cwd not accessible"
+case "$cwd_real/" in
+  "$ws_real"/*) ;;
+  *) die "cwd must be inside the workspace" ;;
+esac
+
+profile="$(printf '%s' "$prof" | /usr/bin/base64 -D)" || die "bad profile encoding"
+case "$profile" in
+  "(version 1)"$'\n'"(deny default)"$'\n'*) ;;
+  *) die "profile must start with (version 1) (deny default)" ;;
+esac
+[[ "$profile" != *"(allow default)"* ]] || die "permissive profile refused"
+
+# Read and delete the per-job env file (inside the workspace, not a symlink).
+declare -a names=() values=()
+if [[ -n "$envfile" ]]; then
+  [[ ! -L "$envfile" && -f "$envfile" ]] || die "env file missing"
+  ef_dir="$(cd "$(dirname "$envfile")" && pwd -P)"
+  [[ "$ef_dir" == "$ws_real" ]] || die "env file must be in the workspace root"
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ -z "$line" ]] && continue
+    name="${line%%=*}"; value="${line#*=}"
+    [[ "$name" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || die "bad env name"
+    case "$name" in SSH_AUTH_SOCK|DYLD_*|LD_*|BASH_ENV|ENV|PROMPT_COMMAND|SUDO_*) continue ;; esac
+    names+=("$name"); values+=("$value")
+  done < "$envfile"
+  rm -f "$envfile"
+fi
+
+# Clean environment: drop everything sudo left us, then export only the job's variables.
+for v in $(compgen -e); do
+  case "$v" in PATH) ;; *) unset "$v" 2>/dev/null || true ;; esac
+done
+export PATH="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin"
+for ((i = 0; i < ${#names[@]}; i++)); do export "${names[$i]}=${values[$i]}"; done
+# HOME/TMPDIR come from the job env (the runner's baseEnv: the worker's own home); default to it.
+export HOME="${HOME:-/Users/$WORKER}" TMPDIR="${TMPDIR:-/Users/$WORKER/.tmp}"
+mkdir -p "$TMPDIR" 2>/dev/null || true
+umask 027
+cd "$cwd_real"
+
+exec /usr/bin/perl -e 'my $t = shift @ARGV; alarm $t; exec { $ARGV[0] } @ARGV or die "exec failed: $!\n";' \
+  "$timeout" /usr/bin/sandbox-exec -p "$profile" "$@"

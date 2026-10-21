@@ -1,0 +1,9 @@
+{
+  "id": "potts-probe",
+  "name": "Potts probe",
+  "description": "WP-0 probe for the isolated test profile: one agent tool + one LLM-free command",
+  "categories": ["other"],
+  "contracts": { "tools": ["potts_probe_echo"] },
+  "activation": { "onStartup": true },
+  "configSchema": { "type": "object", "additionalProperties": false }
+}

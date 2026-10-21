@@ -1,0 +1,4 @@
+Potts uses third-party dependencies under their respective licenses. The
+lockfile records exact dependency versions. Consult installed packages for
+their full license texts. OpenClaw, imsg, agent providers, and Apple Messages
+are separate software/services and are not bundled or relicensed by Potts.

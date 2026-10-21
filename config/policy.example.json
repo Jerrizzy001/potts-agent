@@ -1,0 +1,9 @@
+{
+  "policyVersion": "2026-10-06.1",
+  "description": "Owner-only policy document. Install as $POTTS_HOME/policy.json with mode 0600, owned by the owner account and NOT writable (ideally not readable) by the model/worker account. The action catalog's always-approval kinds are hard-coded and cannot be relaxed here.",
+  "approvalTtlSeconds": 86400,
+  "maxApprovalTtlSeconds": 604800,
+  "ownerAlert": { "destination": "owner", "maxAttemptsPerIncident": 3, "retryIntervalSeconds": 300 },
+  "support": { "mode": "shadow", "registeredChannels": [], "approvedKnowledgeIds": [] },
+  "scopedRequireTask": true
+}
