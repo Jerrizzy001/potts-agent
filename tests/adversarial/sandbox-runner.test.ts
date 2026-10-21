@@ -9,6 +9,7 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer, type Server } from 'node:net';
+import { execFileSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -193,7 +194,7 @@ test('GUI / keychain / privilege binaries cannot be executed (osascript, open -a
   assert.notEqual((await runner.run(spec([NODE, '-e', 'require("child_process").execFileSync("/usr/bin/security",["list-keychains"])']))).exitCode, 0);
 });
 
-test('a copied security/open binary still cannot reach the keychain or LaunchServices', { skip }, async () => {
+test('copied security/open binaries still fail outside their permitted capabilities', { skip }, async () => {
   copyFileSync('/usr/bin/security', join(job, 'sec'));
   copyFileSync('/usr/bin/open', join(job, 'op'));
   const kc = join(HOME, 'Library', 'Keychains', 'login.keychain-db');
@@ -201,7 +202,53 @@ test('a copied security/open binary still cannot reach the keychain or LaunchSer
   assert.notEqual(s.exitCode, 0);
   const o = await runner.run(spec([join(job, 'op'), '-a', 'PottsNoSuchApplication']));
   assert.notEqual(o.exitCode, 0);
-  assert.doesNotMatch(o.stderr, /Unable to find application/, 'must not have reached LaunchServices');
+  // An app-not-found diagnostic does not establish whether Mach IPC succeeded.
+  // The native probe below checks the IPC boundary itself, independently of
+  // open's OS-version-dependent stderr and without launching an application.
+});
+
+// Read-only bootstrap lookup: obtain/release a port, never send a request to
+// the target service. The ABI and status codes are declared by Apple's SDK in
+// <servers/bootstrap.h>: SUCCESS=0, NOT_PRIVILEGED=1100, UNKNOWN_SERVICE=1102.
+const MACH_LOOKUP_PROBE = `import ctypes, json, sys
+lib = ctypes.CDLL('/usr/lib/libSystem.B.dylib')
+lib.bootstrap_look_up.argtypes = [ctypes.c_uint, ctypes.c_char_p, ctypes.POINTER(ctypes.c_uint)]
+lib.bootstrap_look_up.restype = ctypes.c_int
+lib.mach_task_self.restype = ctypes.c_uint
+lib.mach_port_deallocate.argtypes = [ctypes.c_uint, ctypes.c_uint]
+bootstrap = ctypes.c_uint.in_dll(lib, 'bootstrap_port')
+rows = []
+for name in json.loads(sys.argv[1]):
+    port = ctypes.c_uint()
+    status = lib.bootstrap_look_up(bootstrap, name.encode('utf-8'), ctypes.byref(port))
+    rows.append({'name': name, 'status': status, 'hasPort': bool(port.value)})
+    if port.value:
+        lib.mach_port_deallocate(lib.mach_task_self(), port)
+print(json.dumps(rows))
+`;
+
+test('Mach lookups for LaunchServices and securityd are denied, with native positive controls', { skip }, async () => {
+  const services = ['com.apple.coreservices.launchservicesd', 'com.apple.lsd.mapdb', 'com.apple.securityd.xpc'];
+  const unknown = `local.potts.test.unregistered.${process.pid}`;
+  const names = [...services, unknown];
+  const argv = ['/usr/bin/python3', '-c', MACH_LOOKUP_PROBE, JSON.stringify(names)];
+  const expected = (name: string, status: number, hasPort: boolean) => ({ name, status, hasPort });
+  // This proves the helper works and the real services exist in this host's
+  // namespace. Missing services must not masquerade as sandbox enforcement.
+  const native = execFileSync(argv[0]!, argv.slice(1), { cwd: job, env: { ...runner.baseEnv }, encoding: 'utf8', timeout: 20_000 });
+  assert.deepEqual(JSON.parse(native), [...services.map(name => expected(name, 0, true)), expected(unknown, 1102, false)]);
+
+  const denied = await runner.run(spec(argv));
+  assert.equal(denied.exitCode, 0, denied.stderr);
+  assert.deepEqual(JSON.parse(denied.stdout), names.map(name => expected(name, 1100, false)), 'every lookup must be refused by policy, not merely fail to find a service');
+
+  // Re-open only an intentionally unregistered synthetic name: the result
+  // must change from permission-denied to unknown-service. No service is
+  // registered or contacted, and LaunchServices/securityd remain denied.
+  const allowSynthetic = createSandboxExecRunner({ workspaceRoot: root, machServices: [unknown] });
+  const control = await allowSynthetic.run(spec(argv));
+  assert.equal(control.exitCode, 0, control.stderr);
+  assert.deepEqual(JSON.parse(control.stdout), [...services.map(name => expected(name, 1100, false)), expected(unknown, 1102, false)]);
 });
 
 test('process listing of other processes is not available', { skip }, async () => {
