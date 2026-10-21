@@ -23,6 +23,8 @@ The bridge reserves message IDs before work, persists uncertainty, and never aut
 
 Kept modules include memory/style, drafts, notifications/reminders, mail/OAuth, monitoring, isolated delegation, releases, support, voice/telephony, and backup/restore. Personal school workflows, operating records, and deployment targets are not distributed.
 
+See [extended updates](EXTENDED-UPDATES.md) for bounded project inspection, current-turn grounding and the opt-in coordinator model helper.
+
 ## Extending safely
 
 Use `config/*.example.json` and the JSON schema as starting points for a **new** extended home. Project registry starts empty; monitors and external effects are off. Do not connect a public clone to another installation's database. Optional modules require their own account, credentials, provider checks and capability verification.

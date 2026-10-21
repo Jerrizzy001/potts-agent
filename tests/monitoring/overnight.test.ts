@@ -62,7 +62,7 @@ test('overnight outage that recovers before 08:00 → appears in the 09:00 brief
   await w.until('2026-10-07T13:01:00Z'); // 09:01
   assert.equal(w.channel.sent.length, 1);
   const brief = w.channel.sent[0]!.text;
-  assert.match(brief, /^Hey the owner, here’s what’s up this morning/);
+  assert.match(brief, /^Hey, here’s what’s up this morning/);
   assert.match(brief, /Example App was unavailable from 2026-10-07 01:0\d to 2026-10-07 01:3\d\. It recovered after that\./);
   assert.equal(brief.match(/Example App was unavailable/g)?.length, 1, 'recovery is reported once');
   assert.doesNotMatch(brief, /http_5xx|Ref inc_|Resolved:|Local monitor only|Website status/);

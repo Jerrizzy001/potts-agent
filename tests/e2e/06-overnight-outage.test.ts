@@ -46,7 +46,7 @@ test('E2E-06 outage 01:00–01:35 recovers before 08:00 → briefing reports it,
     await w.until('2026-10-07T13:01:00Z'); // 09:01
     const texts = w.channel.sent.filter((m) => m.type === 'text').map((m) => (m as { text: string }).text);
     assert.equal(texts.length, 1, 'exactly one message: the morning briefing');
-    assert.match(texts[0]!, /^Hey the owner/);
+    assert.match(texts[0]!, /^Hey,/);
     assert.match(texts[0]!, /Example App was unavailable from/);
     assert.equal(texts[0]!.match(/Example App was unavailable/g)?.length, 1);
     assert.doesNotMatch(texts[0]!, /http_5xx|Ref inc_|Resolved:|Local monitor only/);

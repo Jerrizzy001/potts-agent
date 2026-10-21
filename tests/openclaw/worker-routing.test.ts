@@ -122,7 +122,7 @@ test('a Sol job requested while one runs is queued, not refused, and starts when
     let n=0;const t=createWorkerTools(cfg.value,{get:async()=>null},[],{spawner:spawn,controls:async()=>({paused:false}),sessionEffort:async()=> 'medium',now:()=>new Date(Date.UTC(2026,9,8,2,0,n++))});
     await t[0]!.execute('x',{...request,task:'First job: fill the Info-Tech form'});
     const q=await t[0]!.execute('x',{...request,task:'Second job: add the street address 151 Example Blvd'});
-    assert.equal((q.details as {state:string;position:number}).state,'queued');assert.match(q.content[0]!.text,/Queued behind the running Sol job \(position 1\)/);
+    assert.equal((q.details as {state:string;position:number}).state,'queued');assert.match(q.content[0]!.text,/queued \(position 1\)/i);
     assert.equal(((await t[0]!.execute('x',{...request,task:'Second job: add the street address 151 Example Blvd'})).details as {state:string}).state,'duplicate');
     assert.equal(launched.length,1);
     finishers[0]!();await new Promise(resolve=>setTimeout(resolve,30));

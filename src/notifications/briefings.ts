@@ -94,7 +94,7 @@ export interface BriefingComposer {
   deliver(briefingId: string, kind: BriefingKind, slotKey: string, o?: ComposeOptions): Promise<{ draft: BriefingDraft | null; duplicate: boolean }>;
 }
 
-const GREETINGS: Record<BriefingKind, string> = { morning: 'Hey the owner, here’s what’s up this morning.', evening: 'Hey the owner, here’s how things are looking.', night: 'Hey the owner, a quick update before tonight’s done.' };
+const GREETINGS: Record<BriefingKind, string> = { morning: 'Hey, here’s what’s up this morning.', evening: 'Hey, here’s how things are looking.', night: 'Hey, a quick update before tonight’s done.' };
 const RELEVANT_MAIL = new Set(['interview_invitation', 'business_enquiry', 'client_opportunity', 'job_opportunity']);
 const MAIL_LABEL: Record<string, string> = {
   interview_invitation: 'Interview',

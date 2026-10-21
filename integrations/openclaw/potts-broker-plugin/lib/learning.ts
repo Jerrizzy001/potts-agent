@@ -43,6 +43,9 @@ export interface LearningOptions {
 }
 export function createLearning(o: LearningOptions) {
   const now = o.now ?? (() => new Date());
+  // Admission receipts are process-local: historical memory alone must never
+  // authorize automatic inspection on an internal or replayed turn.
+  const admissions = new Map<string, { sourceId: string; runId?: string }>();
   let db: DatabaseSync | undefined;
   function database() {
     if (db) return db;
@@ -93,6 +96,23 @@ export function createLearning(o: LearningOptions) {
     const inserted=d.prepare('INSERT OR IGNORE INTO observations VALUES (?,?,?,?,?,?)').run(id, input.session, now().toISOString(), input.kind, excluded ? '[Content excluded from learning: sensitive or oversized.]' : value, excluded ? 1 : 0);
     return Number(inserted.changes)>0?id:null;
   }
+  function admitRequest(session: string, messageId: string, runId: unknown) {
+    if (admissions.size >= 100 && !admissions.has(session)) admissions.delete(admissions.keys().next().value!);
+    admissions.set(session, {sourceId: hash(`${o.channel}:${messageId}`), ...(typeof runId==='string' && runId ? {runId} : {})});
+  }
+  function latestOwnerRequest(session: string, turn: {runId?: string; currentUserMessage?: string; currentUserMessageId?:string; inputProvenance?: {kind?: unknown}}) {
+    if (turn.inputProvenance && turn.inputProvenance.kind !== 'external_user') return null;
+    const admission=admissions.get(session);
+    if(!admission)return null;
+    const row=database().prepare("SELECT * FROM observations WHERE session=? AND kind='owner_request' ORDER BY at DESC,rowid DESC LIMIT 1").get(session) as Observation|undefined;
+    if(!row||row.excluded||row.id!==admission.sourceId)return null;
+    const age=now().getTime()-Date.parse(row.at);
+    if(!Number.isFinite(age)||age<0||age>5*60_000)return null;
+    if(admission.runId && turn.runId){if(admission.runId!==turn.runId)return null;}
+    else if(turn.currentUserMessageId){if(hash(`${o.channel}:${turn.currentUserMessageId}`)!==row.id)return null;}
+    else if(typeof turn.currentUserMessage!=='string'||clean(turn.currentUserMessage)!==row.text)return null;
+    return {sourceId:row.id,session:row.session,at:row.at,text:row.text};
+  }
   async function capture(event: Record<string, unknown>, ctx: Record<string, unknown>) {
     const owner = await o.ownerId();
     // These fields are supplied by inbound_claim, never parsed from the message body.
@@ -102,6 +122,7 @@ export function createLearning(o: LearningOptions) {
     const id = event.messageId ?? ctx.messageId;
     if (typeof id !== 'string' || !id || typeof event.content !== 'string') return;
     const saved = saveObservation({ id: `${o.channel}:${id}`, session, kind: 'owner_request', text: event.content });
+    admitRequest(session,id,event.runId??ctx.runId);
     if (saved) materialize();
   }
   async function captureDispatch(event: Record<string, unknown>) {
@@ -122,6 +143,7 @@ export function createLearning(o: LearningOptions) {
     const id = c.MessageSidFull ?? c.MessageSid;
     if (typeof id !== 'string' || !id || typeof c.RawBody !== 'string') return;
     const saved = saveObservation({id:`${o.channel}:${id}`,session,kind:'owner_request',text:c.RawBody});
+    admitRequest(session,id,event.runId??c.RunId);
     if (saved) materialize();
   }
   function search(query: string, limit = 8) {
@@ -266,5 +288,5 @@ export function createLearning(o: LearningOptions) {
         }catch(e){d.exec('ROLLBACK');throw e;}materialize();return response('I saved that preference.',{ok:true,id,sourceId:source.id,kind:p.kind});
       }}];
   }
-  return {capture,captureDispatch,context,search,tools,reviewDaily,syncJobs,materialize,close(){db?.close();db=undefined;}};
+  return {capture,captureDispatch,latestOwnerRequest,context,search,tools,reviewDaily,syncJobs,materialize,close(){db?.close();db=undefined;admissions.clear();}};
 }

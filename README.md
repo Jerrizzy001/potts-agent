@@ -62,4 +62,5 @@ The Mac must be awake, online and signed in to Messages for live operation. Port
 - [Operations, updates, and uninstall](docs/OPERATIONS.md)
 - [Capabilities and verification](docs/CAPABILITIES.md)
 - [Architecture and extended integrations](docs/ARCHITECTURE.md)
+- [Extended coordinator updates](docs/EXTENDED-UPDATES.md)
 - [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [MIT license](LICENSE)

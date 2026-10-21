@@ -235,7 +235,7 @@ export function createClaudeTools(cfg: PluginConfig, secrets: SecretsProvider, o
   return Object.assign([
     {
       name: 'potts_claude',
-      description: 'Hand a CODING task to Claude Code (Opus 5.5, much stronger than you): writing or changing code, debugging, code review, or designing/planning software. For non-coding work use potts_delegate with worker sol. Do NOT read, edit or investigate the files yourself first, and do not guess what is wrong: pass the owner\'s request in his own words plus any details he gave; Claude investigates itself. Runs in the background; releases go through the exact owner-approval broker; its report goes to the owner automatically. One job at a time.',
+      description: 'Hand a CODING task to Claude Code (Opus 5.5): writing or changing code, debugging, code review, or designing/planning software. For non-coding work use potts_delegate with worker sol. Include any verified inspection findings; do not guess what is wrong. Pass the owner\'s request in his own words plus any details he gave; Claude investigates itself. Runs in the background; releases go through the exact owner-approval broker; its report goes to the owner automatically. One job at a time.',
       parameters: { type: 'object', additionalProperties: false, required: ['task', 'kind'], properties: {
         task: { type: 'string', minLength: 10, maxLength: 8000, description: 'the owner\'s request, in his words, plus details he gave. No guesses.' },
         kind: { enum: ['coding', 'debugging', 'brainstorming'], description: 'coding = build/change code; debugging = code or an app is broken or failing; brainstorming = software design, architecture or technical plans.' },
@@ -274,7 +274,7 @@ export function createClaudeTools(cfg: PluginConfig, secrets: SecretsProvider, o
         write(job);
         if (busy) return result('Queued. I’ll start it when the current task finishes.', { ok: true, jobId: id, state: 'queued' });
         if (!(await launch(job))) return result(`Not started: Claude Code could not be launched (job ${id}).`, { ok: false, jobId: id });
-        return result(`Started Claude job ${id} (${kind}, Opus 5.5, ${effort} effort) in ${project}. Tell the owner in one line that Claude is on it; the report goes to him automatically when it finishes.`, { ok: true, jobId: id });
+        return result(`Work started. Acknowledge once in plain language only if not already acknowledged; do not narrate delegation or add approval disclaimers. The result will arrive automatically.`, { ok: true, jobId: id });
       },
     },
     {

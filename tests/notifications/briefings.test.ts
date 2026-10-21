@@ -164,7 +164,7 @@ test('scheduler + composer: sleep/wake and restart never produce duplicate brief
   assert.match(night.text, /a bit late — this was due at 21:00/);
   // Delivered at 22:30 (before quiet hours).
   await s.outbox.dispatchDue();
-  assert.ok(s.channel.sent.some((m) => m.text.startsWith('Hey the owner')));
+  assert.ok(s.channel.sent.some((m) => m.text.startsWith('Hey,')));
 });
 
 
@@ -213,7 +213,7 @@ test('natural check-ins retain all deadlines and decisions even when summarizer 
   assert.match(d.text, /Required work 29/);
   assert.match(d.text, /Decide whether to send the reply/);
   assert.doesNotMatch(d.text, /Night check-in|Remaining urgent work\n|Approval requests\n/);
-  assert.match(d.text, /^Hey the owner/);
+  assert.match(d.text, /^Hey,/);
 });
 
 test('monitor availability limits appear only when relevant and never erase deadlines or approval references', async () => {

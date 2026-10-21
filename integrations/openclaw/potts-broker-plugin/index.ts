@@ -29,6 +29,7 @@ import { createLearning, type LearningContext } from './lib/learning.ts';
 import { createOwnerReactions, canUseOwnerReactions, type ReactionContext, type Reaction } from './lib/owner-reactions.ts';
 import { createImsgReactionAdapter } from './lib/imsg-reactions.ts';
 import { coordinatorPrompt } from './lib/worker-policy.ts';
+import { groundOwnerProjectRequest } from './lib/request-grounding.ts';
 
 /** The subset of the OpenClaw plugin API this plugin uses (OpenClaw 2026.9.8). */
 export interface PluginApiLike {
@@ -133,9 +134,15 @@ const plugin = {
       }
       const base=coordinatorPrompt(ctx.agentId, cfg.coordinatorAgentId);
       if(!base||!learning)return base;
-      return secrets.get().then(owner=>{
+      return secrets.get().then(async owner=>{
         if(!owner||ctx.senderId!==owner.ownerId||ctx.channel!==cfg.deliveryChannel)return base;
-        try { return {...base,appendContext:learningFailure?'Local learning could not save this request. Do not claim it was remembered.':learning.context(String((_event as {currentUserMessage?:string;prompt?:string}).currentUserMessage??(_event as {prompt?:string}).prompt??''),ctx.sessionKey??'')}; }
+        try {
+          const event=_event as {currentUserMessage?:string;currentUserMessageId?:string;prompt?:string};
+          const memory=learningFailure?'Local learning could not save this request. Do not claim it was remembered.':learning.context(String(event.currentUserMessage??event.prompt??''),ctx.sessionKey??'');
+          const grounding=learningFailure?'':await groundOwnerProjectRequest({coordinatorId:cfg.coordinatorAgentId,ownerId:owner.ownerId,channel:cfg.deliveryChannel!,pottsHome:cfg.pottsHome,
+            ctx:ctx as Parameters<typeof groundOwnerProjectRequest>[0]['ctx'],currentUserMessage:event.currentUserMessage,currentUserMessageId:event.currentUserMessageId,latestOwnerRequest:learning.latestOwnerRequest});
+          return {...base,appendContext:[grounding,memory].filter(Boolean).join('\n\n')};
+        }
         catch{return {...base,appendContext:'Local learning is unavailable. Do not claim that anything was saved.'};}
       });
     });
