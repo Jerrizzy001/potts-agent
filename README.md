@@ -1,20 +1,76 @@
 # Potts
 
-**A persistent personal agent on your Mac. Talk through iMessage. Bring your own agent. Build memory from your input.**
+**Your personal agent. One text away.**
 
-Potts connects a private owner conversation to an agent you choose and a local, inspectable memory. Explicit preferences and corrections become source-linked notes that inform later turns. This recursive feedback loop helps the assistant adapt over time without retraining model weights or granting itself new permissions.
+Hi, I built **Potts**, an always-on personal agent that lives on your Mac, remembers the preferences you share, and is just an iMessage away.
 
-## Give this repository to your agent
+The idea is simple: you should be able to text your assistant, tell it what matters, and come back later without explaining those preferences all over again. Start with a conversation. Connect more of your world when you're ready.
 
-Copy this into a coding agent that can use your Mac's terminal:
+Potts brings together a familiar messaging app, an AI agent you choose, and memory you can actually look at and manage. With its optional integrations, it can remind you about things, surface important emails, keep an eye on your websites, and hand off work to specialist agents.
+
+I'm open-sourcing it so you can run your own, make it yours, and help shape what comes next.
+
+[Get started](#try-potts) · [Explore the features](#give-potts-more-to-do) · [Read the docs](#go-deeper) · [Contribute](CONTRIBUTING.md)
+
+## Start with a conversation
+
+The core setup gives you a dedicated iMessage conversation with your chosen agent and persistent memory on your Mac.
+
+- **Text your assistant.** Reach it through a dedicated one-to-one conversation in Messages. Potts checks the conversation and sender before passing a request to your agent.
+- **Tell it what to remember.** “Remember that I prefer short, direct replies.” Explicit preferences become saved notes that can inform later conversations, including after a restart.
+- **See what it remembers.** Review saved sources with `/memory`, remove one with `/forget <sourceId>`, and check or pause Potts with `/status`, `/pause`, and `/resume`.
+- **Choose the agent behind it.** Connect an existing OpenClaw agent or another compatible agent using the connection guide. Your chosen agent supplies the reasoning and any additional tools.
+
+Potts can run in the background while your Mac is awake, online, and signed in to Messages. That's what “always on” means here; it won't keep working through sleep or logout.
+
+## Give Potts more to do
+
+The repository also includes an **optional advanced setup** with the capabilities below. Each needs its own configuration, permissions, and connection checks. Installing the basic setup doesn't switch them on.
+
+- **Remember the little things for you.** Set one-time or recurring reminders, change them, or cancel them. Scheduled reminders are saved across restarts and respect configured quiet hours.
+- **Bring you up to speed.** Schedule morning, evening, or night briefings that pull together connected information such as important mail, website status, completed work, unfinished tasks, and requests waiting for your approval.
+- **Help with your inbox.** Connect Gmail or Outlook to read and categorize incoming mail, highlight interviews or business opportunities, and prepare replies. Personal emails and messages sent through Potts's approval system need your approval of the exact content and recipients.
+- **Help your drafts sound like you.** Build separate casual and professional writing guides from your own messages, then use them to prepare drafts. Review examples and give feedback on the wording.
+- **Find that conversation.** Search past iMessage and SMS text on your Mac when you've connected and permitted access to that history.
+- **Turn a conversation into something useful.** Save notes, documents, scripts, and drafts as local files. With the matching media tools, send files, screenshots, short screen recordings, and spoken replies back to your own chat. Message reactions are available where the messaging service supports them.
+- **Keep an eye on your websites.** Watch for outages, slow responses, and failing page checks. Track recovery, group repeated alerts, and distinguish a website problem from your Mac losing its connection.
+- **Bring in help for bigger jobs.** Hand specific coding tasks to Claude Code or general research, planning, and other work to a configured specialist agent. Inspect local projects, follow progress, and request interruption or resumption of supported jobs. Browser and computer actions depend on the worker's own tools and permissions.
+- **Prepare a fix for review.** The advanced coding workflow can work in a separate copy of a project you've connected and check the result. Its release workflow runs the checks you've set up and asks you to approve the exact change before merging or deploying it.
+- **Help with customer support.** Draft replies using an approved knowledge base. Configured support channels can answer eligible routine questions automatically, while sensitive or uncertain requests go to you for review.
+- **Use voice when it helps.** Optional phone integrations support voice conversations, configured alert calls to you, and calls to other people after your approval. These require a separate calling provider and setup.
+
+The advanced setup also adds corrections and task outcomes to its memory tools, along with action history, connection status, backup and restore, and controls for pausing individual integrations.
+
+See [capabilities and verification](docs/CAPABILITIES.md) for the exact boundaries and [architecture](docs/ARCHITECTURE.md) for the advanced setup.
+
+## Personal means you have a say
+
+**You can inspect the memory.** Potts shows where saved preferences came from and keeps what you've told it separate from what it has inferred. Its learning comes from using your feedback as context in future conversations. It doesn't retrain itself or rewrite its own code.
+
+**You choose what to connect.** The basic setup doesn't automatically import your inbox, browser, or folders. Optional connections need separate setup. The advanced approval system governs the actions routed through it; permissions you give an outside agent still matter.
+
+**Your memory lives on your Mac.** If you choose a cloud agent, your request and selected memory context go to that provider. iMessage uses Apple's service. Forgetting something in Potts removes it from Potts's local memory, not from Messages or another provider's records. [More about privacy](docs/PRIVACY.md).
+
+## Try Potts
+
+Potts is an early release. **The basic iMessage setup is the supported starting point.** The advanced integrations are included for people who want to configure and extend them; they need additional setup before you can use them.
+
+### Let your coding agent help
+
+Give this to a coding agent that can work on your Mac:
 
 > Set up https://github.com/Jerrizzy001/potts-agent for me. Read AGENTS.md and docs/AGENT-SETUP.md first. Run the offline demo and checks, then help me connect my own agent and a dedicated iMessage conversation. Preserve my existing agents and data. Ask me to complete account sign-in and macOS permission prompts. Verify each setup step and tell me precisely which parts are working.
 
-The agent can perform installation and configuration. You still control account sign-in, your agent provider, and macOS permissions. Pasting a link does not grant those permissions automatically.
+You handle account sign-in and Mac permission prompts. Your agent can help with the installation and configuration.
 
-## Try it without accounts
+### Take a look without connecting accounts
 
-Requires Node **24.12 or newer** and Git. The demo works without Apple Messages, a provider account, or API credentials.
+The demo saves a sample preference, restarts the memory store, and recalls it in a later reply. It uses made-up messages and a demo agent, so no Apple account, AI account, or API key is needed. It doesn't send real messages.
+
+<details>
+<summary>Run the demo yourself</summary>
+
+Requires Node **24.12 or newer** and Git.
 
 ```sh
 git clone https://github.com/Jerrizzy001/potts-agent.git
@@ -24,43 +80,27 @@ npm run typecheck
 npm run public:demo
 ```
 
-The demo uses synthetic messages and a deterministic agent. It exercises real local memory and the bridge; it does not send a real iMessage or call a model. See [setup](docs/AGENT-SETUP.md) to connect a real agent.
+For real iMessage use, follow the [setup guide](docs/AGENT-SETUP.md) and [iMessage requirements](docs/IMESSAGE.md). The live bridge uses a dedicated direct conversation, ignores self-authored messages, and doesn't replay messages missed while it was stopped. Test your own connection before relying on it.
 
-## What you get
+</details>
 
-| Capability | Portable quickstart | Extended runtime |
-|---|---|---|
-| Bring your own agent | JSON-over-stdio adapter or OpenClaw CLI | OpenClaw plugin and worker delegation |
-| Owner-only iMessage conversation | Direct-chat and exact-sender checks | Channel-bound owner commands and approvals |
-| Memory from your input | Explicit preferences, source-linked recall, review, forget | Corrections, patterns, task outcomes, additional memory tools |
-| Persistent background process | Separate macOS LaunchAgent | Daemon, scheduler, queues, audit ledger |
-| Pause and inspect | Local owner commands | Owner controls, capability status, action history |
-| Reminders, briefings, mail, website monitoring | Not part of portable mode | Optional; configure and verify separately |
-| Coding workers, releases, voice | Your connected agent's capabilities | Optional advanced integrations; disabled by default |
+## Make it yours
 
-**Portable mode is the supported starting path.** The extended implementation is included for developers; an integration's source and passing fixture tests do not mean your account is connected. See [capabilities](docs/CAPABILITIES.md).
+Potts is available under the [MIT license](LICENSE). You're welcome to use it, change it, and build on it.
 
-## Learning that you can inspect
+Try the demo. Share an idea. Report a bug. Improve the docs. Add a connection you wish existed. The [contributing guide](CONTRIBUTING.md) is a good place to start.
 
-Verified input → source-linked memory → relevant context → next response → new input or correction.
+If you'd like a personal agent that's one text away, give Potts a star and help shape where it goes next.
 
-Potts keeps explicit notes separate from tentative patterns. Local SQLite and Markdown make saved knowledge inspectable. The learning loop does not fine-tune weights, rewrite its own code, or turn remembered text into approval. See [memory](docs/MEMORY.md).
-
-## Local ownership, clear boundaries
-
-Runtime data lives outside the Git checkout. No author's accounts, memories, message history, or personal project configuration are included. A connected cloud agent receives the request and selected memory context; a local agent can keep inference local. iMessage itself uses Apple's service. An agent command is trusted software running with your user permissions, not a sandbox. See [privacy](docs/PRIVACY.md).
-
-The Mac must be awake, online and signed in to Messages for live operation. Portable mode deliberately ignores self-authored messages and uses a dedicated direct conversation. It does not replay messages missed while stopped. A successful send command is not proof the recipient read or received the message.
-
-## Documentation
+## Go deeper
 
 - [Agent-led setup](docs/AGENT-SETUP.md)
 - [Connect your own agent](docs/AGENT-ADAPTERS.md)
 - [iMessage requirements and troubleshooting](docs/IMESSAGE.md)
-- [Memory and recursive feedback](docs/MEMORY.md)
+- [Memory and learning from feedback](docs/MEMORY.md)
 - [Privacy and data flow](docs/PRIVACY.md)
 - [Operations, updates, and uninstall](docs/OPERATIONS.md)
 - [Capabilities and verification](docs/CAPABILITIES.md)
-- [Architecture and extended integrations](docs/ARCHITECTURE.md)
-- [Extended coordinator updates](docs/EXTENDED-UPDATES.md)
+- [Architecture and advanced integrations](docs/ARCHITECTURE.md)
+- [Advanced coordinator updates](docs/EXTENDED-UPDATES.md)
 - [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [MIT license](LICENSE)
