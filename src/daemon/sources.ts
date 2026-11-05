@@ -5,6 +5,7 @@
 import type { SyncResult, SyncSource } from '../jobs/standard.ts';
 import type { MailPriorityCategory, PriorityMailItem, PriorityMailSource } from '../notifications/deadlines.ts';
 import type { MailStore } from '../connectors/mail/store.ts';
+import { detectInterview } from '../connectors/mail/classify.ts';
 import type { MailSyncResult } from '../connectors/mail/sync-common.ts';
 
 export function mailSyncSource(reader: { accountId: string; sync(): Promise<MailSyncResult> }, label: string): SyncSource {
@@ -52,7 +53,7 @@ export function mailPrioritySource(store: MailStore): PriorityMailSource {
     async listPriorityItems(sinceIso: string): Promise<PriorityMailItem[]> {
       return store
         .list({ priority: 'priority', sinceIso, limit: 200 })
-        .filter((m) => PRIORITY_MAP[m.category])
+        .filter((m) => PRIORITY_MAP[m.category] && (m.category !== 'interview_invitation' || detectInterview(m, m.classification.bulk).detected))
         .map((m) => ({
           id: m.providerMessageId,
           accountId: m.accountId,

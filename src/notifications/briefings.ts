@@ -65,6 +65,7 @@ export interface BriefingDraft {
   materialHash: string;
   hasNewMaterial: boolean;
   routineIds: string[];
+  urgentEventIds?: string[];
   text: string;
   summarized: boolean;
 }
@@ -106,6 +107,15 @@ const MAIL_LABEL: Record<string, string> = {
 export function createBriefingComposer(o: BriefingComposerOptions): BriefingComposer {
   const { db, clock, timezone, providers } = o;
   const log = o.logger ?? nullLogger;
+  o.outbox.setValidator('briefing', n => {
+    const key=n.dedupKey.replace(/#\d+$/,'');
+    const row=db.prepare('SELECT value FROM wp5_kv WHERE key=?').get(`briefing-urgent:${key}`) as {value:string}|undefined;
+    if (!row || !o.urgent) return {deliver:true};
+    const stale=(JSON.parse(row.value) as string[]).some(id=>o.urgent!.get(id)?.status!=='open');
+    if (!stale) return {deliver:true};
+    db.prepare("UPDATE owner_notifications SET status='pending',folded_into=NULL,updated_at=? WHERE status='folded' AND folded_into=?").run(clock.nowIso(),key);
+    return {deliver:false,reason:'Briefing source evidence changed; awaiting a fresh briefing'};
+  });
 
   const sinceDefault = () => {
     const r = db.prepare('SELECT created_at FROM briefing_log ORDER BY created_at DESC LIMIT 1').get() as { created_at: string } | undefined;
@@ -139,7 +149,8 @@ export function createBriefingComposer(o: BriefingComposerOptions): BriefingComp
       ? async () => (await tasks()).filter((a) => !a.completed && Number.isFinite(Date.parse(a.dueAt))).sort((a, b) => Date.parse(a.dueAt) - Date.parse(b.dueAt))
       : undefined;
     const renderTask = (a: TaskDeadlineInfo) => `${Date.parse(a.dueAt) <= now ? 'Overdue: ' : ''}${fmtLocal(a.dueAt)} — ${sanitizeDisplay(a.project, 40)}: ${sanitizeDisplay(a.title, 90)}${a.completionStatusKnown === false ? ' (completion unverified)' : ''}`;
-    const urgentLines = () => (o.urgent?.listOpen() ?? []).map((e) => e.title);
+    const urgentEventIds: string[] = [];
+    const urgentLines = () => (o.urgent?.listOpen() ?? []).map(e => { urgentEventIds.push(e.id); return e.title; });
 
     // Routine items held for the briefing (overnight notes, recoveries, monitoring gaps).
     const routine = o.outbox.pendingRoutine();
@@ -223,7 +234,7 @@ export function createBriefingComposer(o: BriefingComposerOptions): BriefingComp
     }
     const naturalBody = renderNaturalSections(finalSections);
     const text = [header, overview, naturalBody || "All quiet, nothing new from the things I could check."].filter(Boolean).join('\n\n');
-    return { kind, slotKey, sections: finalSections, itemCount, materialHash, hasNewMaterial, routineIds: routine.map((r) => r.id), text, summarized: overview !== null };
+    return { kind, slotKey, sections: finalSections, itemCount, materialHash, hasNewMaterial, routineIds: routine.map((r) => r.id), urgentEventIds, text, summarized: overview !== null };
   }
 
   function websiteSection(ctx: BriefingContext, always: boolean): BriefingSection | null {
@@ -287,6 +298,7 @@ export function createBriefingComposer(o: BriefingComposerOptions): BriefingComp
       const res = withTransaction(db, () => {
         const r = o.outbox.enqueue({ dedupKey: key, category: 'briefing', text: draft.text });
         if (r.duplicate) return r;
+        db.prepare('INSERT OR REPLACE INTO wp5_kv(key,value,updated_at) VALUES(?,?,?)').run(`briefing-urgent:${key}`, JSON.stringify(draft.urgentEventIds ?? []), clock.nowIso());
         o.outbox.foldInto(draft.routineIds, key);
         db.prepare(
           `INSERT INTO briefing_log (dedup_key, briefing_id, kind, slot_key, material_hash, item_count, late, summarized, parts, created_at)

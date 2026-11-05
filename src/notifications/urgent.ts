@@ -97,18 +97,29 @@ const toEvent = (r: Row): UrgentEvent => ({
   resolution: r.resolution,
 });
 
-export function createUrgentEventStore(db: Db, clock: Clock): UrgentEventStore {
+export function createUrgentEventStore(db: Db, clock: Clock, validate?: (event: UrgentEvent) => string | null): UrgentEventStore {
   const listeners: UrgentListener[] = [];
   const get = (id: string) => {
     const r = db.prepare('SELECT * FROM urgent_events WHERE id = ?').get(id) as Row | undefined;
-    return r ? toEvent(r) : null;
+    return r ? current(toEvent(r)) : null;
   };
   const getByDedupKey = (k: string) => {
     const r = db.prepare('SELECT * FROM urgent_events WHERE dedup_key = ?').get(k) as Row | undefined;
-    return r ? toEvent(r) : null;
+    return r ? current(toEvent(r)) : null;
   };
   const emit = (e: UrgentEvent, c: 'raised' | 'acknowledged' | 'resolved') => {
     for (const l of listeners) l(e, c);
+  };
+  // Source corrections invalidate durable alerts at every consumer, including calls.
+  const current = (event: UrgentEvent): UrgentEvent => {
+    if (event.status === 'resolved' || !validate) return event;
+    const reason = validate(event);
+    if (!reason) return event;
+    const now = clock.nowIso();
+    db.prepare("UPDATE urgent_events SET status='resolved',resolved_at=?,resolution=?,updated_at=? WHERE id=? AND status!='resolved'").run(now,reason.slice(0,300),now,event.id);
+    const resolved = {...event,status:'resolved' as const,resolvedAt:now,resolution:reason};
+    emit(resolved,'resolved');
+    return resolved;
   };
   return {
     raise(input) {
@@ -122,7 +133,7 @@ export function createUrgentEventStore(db: Db, clock: Clock): UrgentEventStore {
            VALUES (?, ?, ?, ?, ?, ?, ?, 'open', ?, ?)`,
         ).run(id, input.dedupKey, input.sourceType, input.sourceRef, input.title.slice(0, 300), canonicalJson(input.detail ?? {}), input.shouldCall ? 1 : 0, now, now);
         const ev = get(id)!;
-        emit(ev, 'raised');
+        if (ev.status === 'open') emit(ev, 'raised');
         return { event: ev, created: true };
       });
     },
@@ -151,13 +162,13 @@ export function createUrgentEventStore(db: Db, clock: Clock): UrgentEventStore {
     get,
     getByDedupKey,
     listOpen() {
-      return (db.prepare(`SELECT * FROM urgent_events WHERE status = 'open' ORDER BY created_at`).all() as unknown as Row[]).map(toEvent);
+      return (db.prepare(`SELECT * FROM urgent_events WHERE status = 'open' ORDER BY created_at`).all() as unknown as Row[]).map(toEvent).map(current).filter(e=>e.status==='open');
     },
     listBySource(sourceType, status) {
       const rows = status
         ? db.prepare('SELECT * FROM urgent_events WHERE source_type = ? AND status = ? ORDER BY created_at').all(sourceType, status)
         : db.prepare('SELECT * FROM urgent_events WHERE source_type = ? ORDER BY created_at').all(sourceType);
-      return (rows as unknown as Row[]).map(toEvent);
+      return (rows as unknown as Row[]).map(toEvent).map(current).filter(e=>!status||e.status===status);
     },
     resolvedSince(sinceIso) {
       return (db.prepare(`SELECT * FROM urgent_events WHERE status = 'resolved' AND resolved_at >= ? ORDER BY resolved_at`).all(sinceIso) as unknown as Row[]).map(toEvent);

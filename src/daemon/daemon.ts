@@ -74,6 +74,7 @@ import { createDedicatedUserRunner } from '../workers/isolation/index.ts';
 import { computeCapabilities, type Capability, type RuntimeFacts } from '../status/model.ts';
 import { loadDaemonConfig, fatal, type DaemonConfig } from './config.ts';
 import { mailPrioritySource, mailSyncSource } from './sources.ts';
+import { mailEventInvalidReason } from './mail-evidence.ts';
 import { createSessionGuard, ownerAgentId } from './session-guard.ts';
 import { execFile } from 'node:child_process';
 import { homedir } from 'node:os';
@@ -236,7 +237,8 @@ export async function createDaemon(o: DaemonOptions): Promise<Result<Daemon>> {
   const quiet = quietHoursFromConfig(cfg);
 
   // --- notifications core ------------------------------------------------------------------------------------
-  const urgent = createUrgentEventStore(db, clock);
+  let validateMailEvent: Parameters<typeof createUrgentEventStore>[2];
+  const urgent = createUrgentEventStore(db, clock, event => validateMailEvent?.(event) ?? null);
   const outbox = createOutbox({ db, clock, quiet, logger: log });
   bindUrgentEventsToOutbox(urgent, outbox);
 
@@ -426,6 +428,8 @@ export async function createDaemon(o: DaemonOptions): Promise<Result<Daemon>> {
   const revocationSink = brokerRevocationSink(broker);
   const mailCfg = conn.mail ?? {};
   const mailStore = createMailStore(db, clock, { ...(mailCfg.schoolDomains ? { schoolDomains: mailCfg.schoolDomains } : {}) });
+  validateMailEvent = event => mailEventInvalidReason(mailStore, event);
+  urgent.listOpen(); // Retire stale persisted mail alerts before scheduling/delivery.
   const localClassifier = mailCfg.localClassifier?.enabled
     ? createLmStudioClassifier({ enabled: true, fetch: fetchFn, ...(mailCfg.localClassifier.baseUrl ? { baseUrl: mailCfg.localClassifier.baseUrl } : {}), ...(mailCfg.localClassifier.model ? { model: mailCfg.localClassifier.model } : {}) })
     : undefined;
@@ -497,7 +501,7 @@ export async function createDaemon(o: DaemonOptions): Promise<Result<Daemon>> {
       [...workerBriefingItems(home, ctx.sinceIso, 'progress'), ...(db.prepare("SELECT id, kind, destination_json FROM actions WHERE status = 'succeeded' AND updated_at >= ? ORDER BY updated_at LIMIT 20").all(ctx.sinceIso) as { id: string; kind: string; destination_json: string }[])
         .map((r) => ({ text: `${r.kind} → ${(JSON.parse(r.destination_json) as string[]).join(', ').slice(0, 80)} done`, ref: r.id }))],
     unfinished: async (ctx) =>
-      [...workerBriefingItems(home, ctx.sinceIso, 'unfinished'), ...(db.prepare("SELECT id, kind, status FROM actions WHERE status IN ('uncertain','held','failed') ORDER BY updated_at DESC LIMIT 20").all() as { id: string; kind: string; status: string }[])
+      [...workerBriefingItems(home, ctx.sinceIso, 'unfinished'), ...(db.prepare("SELECT 1 FROM actions WHERE kind='call_owner_alert' AND status='held' LIMIT 1").get() ? [{text:'Automatic alert calls are waiting on a control or prerequisite. Check /pstatus; a held action does not mean a call was placed.'}] : []), ...(db.prepare("SELECT id, kind, status FROM actions WHERE NOT (kind='call_owner_alert' AND status='held') AND status IN ('uncertain','held','failed') ORDER BY updated_at DESC LIMIT 20").all() as { id: string; kind: string; status: string }[])
         .map((r) => ({ text: `${r.kind} is ${r.status}${r.status === 'uncertain' ? ' (being reconciled; never re-sent automatically)' : ''}`, ref: r.id }))],
     ...(priorityMail ? { messages: async (ctx) => priorityMail.listPriorityItems(ctx.sinceIso) } : {}),
   };

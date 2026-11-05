@@ -105,16 +105,17 @@ export function createMailStore(db: Db, clock: Clock, classifierOptions: Classif
     upsert(m, cls) {
       const hash = contentHashOf(m);
       return withTransaction(db, () => {
-        const prev = db.prepare('SELECT content_hash, deleted_at FROM mail_items WHERE account_id = ? AND provider_message_id = ?').get(m.accountId, m.providerMessageId) as
-          | { content_hash: string; deleted_at: string | null }
+        const prev = db.prepare('SELECT content_hash, deleted_at, classification_json FROM mail_items WHERE account_id = ? AND provider_message_id = ?').get(m.accountId, m.providerMessageId) as
+          | { content_hash: string; deleted_at: string | null; classification_json: string }
           | undefined;
-        if (prev && prev.content_hash === hash && prev.deleted_at === null) return 'unchanged';
         const c = cls ?? classifyMail(m, classifierOptions);
+        const classificationJson = JSON.stringify({ c, replyTo: m.replyTo, contentFlags: m.contentFlags });
+        if (prev && prev.content_hash === hash && prev.deleted_at === null && prev.classification_json === classificationJson) return 'unchanged';
         const now = clock.nowIso();
         const vals = [
           m.provider, m.threadId, m.internetMessageId, m.from?.address ?? null, m.from?.name ?? null, JSON.stringify(m.to), JSON.stringify(m.cc),
           m.subject, m.snippet, m.bodyText, m.bodySource, m.receivedAt, JSON.stringify(m.labels), JSON.stringify(m.headers), JSON.stringify(m.attachments),
-          hash, c.category, c.priority, JSON.stringify({ c, replyTo: m.replyTo, contentFlags: m.contentFlags }), c.injection.flagged ? 1 : 0,
+          hash, c.category, c.priority, classificationJson, c.injection.flagged ? 1 : 0,
         ] as const;
         if (!prev) {
           db.prepare(

@@ -71,7 +71,10 @@ export function createEnvironmentTool(cfg: PluginConfig, deps: {
         guidance: [
           'Inspect the registered local repository and relevant files before asking the owner to locate them. Retrieve only task-relevant information.',
           'For an existing signed-in Chrome session, inspect the user existing-session profile or the explicitly named profile; the managed openclaw profile has separate login state.',
-          'A running browser process is not proof of a usable page connection or site authentication. Verify the target before acting.',
+          'A running browser process is not proof of a usable page connection or site authentication. App inventory alone does not verify window access, navigation or screenshots. Verify the requested window action before reporting computer access as working.',
+          'A locked Mac can expose app inventory while window control fails. If native computer use reports that the Mac is locked and automatic unlock failed, ask the owner to unlock it manually; never disable the lock or change security settings. A cgWindowNotFound error alone does not prove the Mac is locked or that the owner must foreground Safari: report the actual observed blocker.',
+          'Use only native computer APIs exposed by the current runtime documentation. Optional methods may be absent. For macOS, getApp selects or launches the named app; do not assume launch_app exists. Never replace a blocked window with shell UI automation or unrelated browser-history enumeration.',
+          'Workers return the exact saved screenshot path to the coordinator for owner delivery. File capture and owner delivery are separate; do not assume a worker has owner media tools.',
           'An HTTP 401 from a standalone backend request does not prove the signed-in browser lacks access. Diagnose the browser connection; do not copy cookies, bypass authorization, or ask for credentials already available through the approved session.',
           'If browser attachment requires approval, name that specific connection step. Do not replace a failed attachment with blind foreground clicks.',
         ],

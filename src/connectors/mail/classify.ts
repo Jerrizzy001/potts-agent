@@ -1,3 +1,4 @@
+import { detectInterviewEvidence } from './interview.ts';
 import { detectInjection, type InjectionReport } from './injection.ts';
 import { domainOf, type NormalizedMail } from './types.ts';
 
@@ -59,11 +60,7 @@ const RX = {
   client: /\b(freelance|contract (work|role|position|developer)|project (budget|scope|proposal|brief)|rfp|request for proposal|statement of work|\bsow\b|retainer|budget (of|is)|paid project|client project)\b/i,
   partnership: /\b(partner(ship)? (with|opportunit(y|ies))|collaborat(e|ion|ing)( with you)?|work (together|with you)|sponsor(ship)?|joint venture|would love to (work|team up)|team up)\b/i,
   school: /\b(assignment|course|professor|instructor|lecture|syllabus|midterm|final exam|grade(s|d)?|semester|tuition|registrar)\b/i,
-  interviewTerm: /\b(interview(s|ing)?|phone screen|technical screen|screening call|hiring manager (call|chat)|next round|on-?site (visit|interview))\b/i,
-  interviewCue: /\b(invite|invitation|invited|schedule|scheduling|availability|available (for|to)|book a time|select a time|pick a time|time slot|let us know (when|your)|would like to (speak|meet|chat|talk)|set up a (call|time|meeting)|confirm(ed)? (your|the) interview|move (you )?forward|next steps?)\b/i,
-  interviewNegative: /\b(interview tips|how to (ace|prepare for) (an|your) interview|we regret|not (be )?moving forward|unfortunately,? we|position has been filled|decided to (pursue|move forward with) other)\b/i,
 };
-const SCHEDULING_HOSTS = /(calendly\.com|goodtime\.io|greenhouse\.io|lever\.co|ashbyhq\.com|myworkdayjobs\.com|workday\.com|smartrecruiters\.com|zoom\.us|teams\.microsoft\.com|meet\.google\.com|cal\.com|hirevue\.com)/i;
 const BULK_SENDER = /^(newsletter|news|marketing|promo(tions)?|offers|deals|digest|updates|hello|info|mailer|noreply-marketing)@/i;
 const AUTOMATED_SENDER = /^(no-?reply|do-?not-?reply|notifications?|alerts?|mailer-daemon|postmaster|accounts?|billing|receipts?|orders?)@/i;
 const JOB_BOARD_DOMAINS = /(linkedin\.com|indeed\.com|glassdoor\.com|ziprecruiter\.com|monster\.(com|ca)|workopolis\.com|jobbank\.gc\.ca)$/i;
@@ -73,19 +70,7 @@ function hits(re: RegExp, subject: string, body: string): number {
 }
 
 export function detectInterview(m: Pick<NormalizedMail, 'subject' | 'bodyText' | 'from'>, bulk: boolean): InterviewDetection {
-  const none: InterviewDetection = { detected: false, confidence: 'none', evidence: [], schedulingLinks: [], company: null };
-  const text = `${m.subject}\n${m.bodyText}`;
-  const links = [...new Set((text.match(/https?:\/\/[^\s<>"')]+/gi) ?? []).filter((u) => SCHEDULING_HOSTS.test(u)))].slice(0, 5);
-  const term = RX.interviewTerm.exec(text);
-  if (!term || RX.interviewNegative.test(text)) return none;
-  const cue = RX.interviewCue.exec(text);
-  if (!cue && links.length === 0) return none;
-  if (bulk && !RX.interviewTerm.test(m.subject)) return none; // newsletters mentioning interviews
-  const evidence = [term[0], ...(cue ? [cue[0]] : []), ...(links.length ? ['scheduling link'] : [])];
-  const subjectHas = RX.interviewTerm.test(m.subject);
-  const d = domainOf(m.from?.address);
-  const company = d && !/(gmail|outlook|hotmail|yahoo|icloud|proton)\./i.test(d) ? d.split('.').slice(-2, -1)[0] ?? null : null;
-  return { detected: true, confidence: subjectHas && (cue || links.length) && !bulk ? 'high' : 'medium', evidence, schedulingLinks: links, company };
+  return detectInterviewEvidence(m, bulk);
 }
 
 /**

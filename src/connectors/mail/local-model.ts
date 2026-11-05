@@ -1,5 +1,5 @@
 import type { FetchLike } from '../oauth/http.ts';
-import { isMailCategory, priorityOf, type MailCategory, type MailClassification } from './classify.ts';
+import { detectInterview, isMailCategory, priorityOf, type MailCategory, type MailClassification } from './classify.ts';
 import { fenceUntrusted } from './injection.ts';
 import type { NormalizedMail } from './types.ts';
 
@@ -81,6 +81,7 @@ export async function refineWithModel(m: NormalizedMail, h: MailClassification, 
   if (!model.enabled || !['personal', 'other'].includes(h.category)) return h;
   const s = await model.classify(m, h);
   if (!s || s.confidence < minConfidence) return h;
+  if (s.category === 'interview_invitation' && !detectInterview(m, h.bulk).detected) return h;
   let priority = priorityOf(s.category);
   const reasons = [...h.reasons, `local model suggested ${s.category} (${s.confidence.toFixed(2)})`];
   if (priority === 'priority' && (h.injection.flagged || h.bulk)) {

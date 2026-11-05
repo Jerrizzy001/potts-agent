@@ -8,6 +8,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createFakeTelephonyProvider } from '../../src/telephony/testing.ts';
 import { createFakeClock } from '../../src/core/clock.ts';
+import { normalizeGmailMessage } from '../../src/connectors/gmail/reader.ts';
 import { isQuietAt, DEFAULT_QUIET_HOURS } from '../../src/notifications/quiet-hours.ts';
 import { makeHome, startWorld } from './_harness.ts';
 
@@ -42,7 +43,17 @@ test('E2E-05 event at 23:01 and a retry crossing 23:00: nothing reaches the owne
     assert.equal(provider.placed.length, 2, 'second attempt at 22:57');
     // The third attempt would be due at 23:02 → held by quiet hours (proposal, dispatch and executor checks).
     await w.until('2026-10-08T03:01:00Z', 15_000); // 23:01
-    const ev2 = w.d.urgent.raise({ dedupKey: 'e2e:interview:1', sourceType: 'interview_invitation', sourceRef: 'gmail-personal:m9', title: 'Interview invitation', shouldCall: true }).event.id;
+    // A mail alert must be backed by a cached invitation, not just an asserted category.
+    const unsupported = w.d.urgent.raise({ dedupKey: 'e2e:unsupported', sourceType: 'interview_invitation', sourceRef: 'gmail-personal:missing', title: 'Unsupported invitation', detail: { accountId: 'gmail-personal', messageId: 'missing' }, shouldCall: true }).event;
+    assert.equal(unsupported.status, 'resolved');
+    assert.equal(w.d.telephonyStore.incident(unsupported.id), undefined);
+    w.d.mailStore.upsert(normalizeGmailMessage('gmail-personal', {
+      id: 'm9', payload: {
+        headers: [{ name: 'From', value: 'recruiter@company.example' }, { name: 'Subject', value: 'Interview invitation' }],
+        mimeType: 'text/plain', body: { data: Buffer.from('We invite you to an interview. Please share your availability.').toString('base64url') },
+      },
+    }));
+    const ev2 = w.d.urgent.raise({ dedupKey: 'e2e:interview:1', sourceType: 'interview_invitation', sourceRef: 'gmail-personal:m9', title: 'Interview invitation', detail: { accountId: 'gmail-personal', messageId: 'm9' }, shouldCall: true }).event.id;
     const msgsAt2301 = w.channel.sent.length;
     // Walk through the whole night: no message, no call.
     await w.until('2026-10-08T11:59:30Z', 5 * 60_000); // 07:59:30

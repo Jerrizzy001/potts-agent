@@ -33,3 +33,21 @@ Review the private candidate, then repeat with `--apply` to validate, back up an
 - Messaging, computer, browser and external connections are reported separately.
 
 Synthetic tests cover these boundaries. Real messaging, provider access, automatic hook correlation and OS capabilities must still be verified in the installation where they run. Worker completion currently relays a validated short report directly; comprehensive request amendment and suppression of obsolete worker results are not implemented by this update.
+
+## Mail evidence and corrected alerts
+
+Interview detection now requires invitation or scheduling evidence in the email. Application receipts, conditional promises of an interview, careers links, and model suggestions alone do not establish an invitation. Scheduling links are checked by hostname. This remains a conservative heuristic, not a guarantee that every invitation will be recognized.
+
+Reclassification is saved even when the email body has not changed. The extended daemon rechecks cached source evidence before returning an urgent mail event, including the notification and alert-call paths. A queued briefing linked to an urgent event is dropped if that event is no longer open; routine updates folded into it become eligible for the next briefing. Held alert calls are summarized as waiting, never as calls already placed.
+
+For installations with older cached misclassifications, an optional offline repair previews counts without changing the database:
+
+```sh
+node --disable-warning=ExperimentalWarning scripts/repair-mail-evidence.ts --home /path/to/your/extended-runtime
+```
+
+Stop that runtime's daemon before repeating the command with `--apply`. The utility saves a private SQLite backup under the selected runtime's `backups/mail-evidence-repair` directory, reclassifies unsupported interview labels, resolves obsolete alerts, and cancels their pending call actions and approvals. It drops related pending notifications and restores unrelated routine updates from those briefings. It does not resend messages, place calls, undo completed actions, or erase already-delivered messages. Keep the runtime and its backups outside Git. Portable setup does not run this utility or connect mail accounts.
+
+## Computer-access evidence
+
+The environment and worker guidance distinguish app inventory from usable window control, browser authentication, and successful screenshot capture. Workers use only documented APIs, report an explicitly observed lock without changing security settings, and return the exact saved screenshot path for separate delivery. These are behavior instructions; actual computer access still depends on the installed tools and permissions.
